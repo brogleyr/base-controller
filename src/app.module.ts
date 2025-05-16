@@ -20,9 +20,6 @@ import { SisModule } from './sis/sis.module';
 import { EventsGateway } from './events/events.gateway';
 import { PostgresService } from './services/postgres.service';
 import { RedisService } from './services/redis.service';
-
-
-// Import hello
 import { AiSkillsModule } from './aiskills/aiskills.module';
 
 
@@ -42,9 +39,7 @@ import { AiSkillsModule } from './aiskills/aiskills.module';
     MetadataModule,
     SvgModule,
     SisModule,
-
     AiSkillsModule,
-
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -81,7 +76,6 @@ import { AiSkillsModule } from './aiskills/aiskills.module';
         path: 'workflow',
         module: WorkflowModule,
       },
-
       {
         path: 'aiskills',
         module: AiSkillsModule,

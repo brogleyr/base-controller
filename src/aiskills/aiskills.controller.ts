@@ -4,7 +4,7 @@ import { AiSkillsService } from './aiskills.service';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('AI Skills')
-@Controller('ai_skills')
+@Controller()
 export class AiSkillsController {
   constructor(private readonly aiSkillsService: AiSkillsService) {}
 
