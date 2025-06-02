@@ -1,29 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import * as courseData from './hanover_courses.json';
+import { COURSE_DATA } from './course.data';
+
 
 @Injectable()
 export class CourseService {
-  private courses = courseData as any[]; // Optionally define a type if available
+  getCourseInfo(courseName: string, courseCode: string) {
+    const course = COURSE_DATA.find(
+  (c) => 
+    c.name.toLowerCase() === courseName.toLowerCase() && 
+    c.code.toLowerCase() === courseCode.toLowerCase()
+);
 
-  getCourseInfo(courseTitle: string) {
-    const course = this.courses.find(
-      (c) => c.name.toLowerCase() === courseTitle.toLowerCase()
-    );
 
     if (!course) {
       return {
-        error: `Course with title "${courseTitle}" not found.`,
+        error: `Course with name "${courseName}" and code "${courseCode}" not found.`
       };
     }
 
     return {
-      name: course.name,
       description: course.description,
-      university: course.university,
-      abilities: course.Matches?.Abilities || [],
-      skills: course.Matches?.Skills || [],
-      techAndTools: course.Matches?.TechAndTools || [],
-      knowledge: course.Matches?.Knowledge || [],
+      technologicalSkills: course.technologicalSkills || [],
+      skills: course.skills || [],
+      abilities: course.abilities || []
     };
   }
 }

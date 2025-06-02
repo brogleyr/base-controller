@@ -70,23 +70,6 @@ export class AcaPyService {
         }
     }
 
-    async sendCredOffer2(credentialOfferBody: object): Promise<boolean> {
-        const credentialRequestUrl = `${this.configService.get<string>('API_BASE_URL')}/issue-credential-2.0/send-offer`;
-
-        try {
-            await lastValueFrom(
-                this.httpService
-                    .post(credentialRequestUrl, credentialOfferBody, this.getRequestConfig())
-                    .pipe(map((resp) => resp.data)),
-            );
-            this.logger.log('Credential offer sent successfully');
-            return true;
-        } catch (error) {
-            this.logger.error('Error sending credential offer:', error.message);
-            return false;
-        }
-    }
-
     async fetchCredentialRecord(credentialExchangeId: string): Promise<any> {
         const url = `${this.configService.get<string>('API_BASE_URL')}/issue-credential/records/${credentialExchangeId}`;
 
@@ -209,22 +192,6 @@ export class AcaPyService {
             throw new Error('Failed to send connection data request');
         }
     }
-
-    async getPresentationExchangeRecordById(pres_ex_id: string): Promise<any> {
-        const presexByIDFetchUrl = `${this.configService.get<string>('API_BASE_URL')}/present-proof-2.0/records/${pres_ex_id}`;
-        const presexByIDFetchConfig: AxiosRequestConfig = this.getRequestConfig();
-        try {
-            const response = await lastValueFrom(
-                this.httpService.get(presexByIDFetchUrl, presexByIDFetchConfig).pipe(map((resp) => resp.data))
-            );
-            this.logger.log('Presentation Exchange Record data request sent successfully');
-            return response;            
-        } catch (error) {
-            this.logger.error('Error sending presentation exchnage record request:', error.message);
-            throw new Error('Failed to send presentation exchange record request');
-        }
-    }
-
 
     async getMetadataByConnectionId(connectionId: string): Promise<any> {
         const metadataFetchUrl = `${this.configService.get<string>('API_BASE_URL')}/connections/${connectionId}/metadata`;

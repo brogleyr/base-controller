@@ -32,11 +32,11 @@ async function bootstrap() {
 
   // Add request logging middleware
   app.use((req: Request, res: Response, next: NextFunction) => {
-    //console.log(`[Request] ${req.method} ${req.url}`);
-    //console.log('[Raw Headers]', req.rawHeaders);
-    //console.log('[Headers]', req.headers);
-    //console.log('[Query Params]', req.query);
-    //console.log('[Body]', req.body);
+    console.log(`[Request] ${req.method} ${req.url}`);
+    console.log('[Raw Headers]', req.rawHeaders);
+    console.log('[Headers]', req.headers);
+    console.log('[Query Params]', req.query);
+    console.log('[Body]', req.body);
 
     const apiKey = configService.get<string>('WEBHOOK_API_KEY');
     const requestApiKey = req.headers['x-api-key'];

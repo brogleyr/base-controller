@@ -8,11 +8,10 @@ import { MetadataModule } from '../metadata/metadata.module'; // Import Metadata
 import { WorkflowsService } from 'src/workflow/workflows/workflows.service';
 import { WorkflowModule } from 'src/workflow/workflow.module';
 import { EnrollmentModule } from 'src/enrollment/enrollment.module';
-import { AcaPyService } from 'src/services/acapy.service';
 
 @Module({
   imports: [HttpModule, ConfigModule, WorkflowModule, MetadataModule, EnrollmentModule], // Add MetadataModule here
   controllers: [VerificationController],
-  providers: [VerificationService, AcaPyService],
+  providers: [VerificationService],
 })
 export class VerificationModule {}

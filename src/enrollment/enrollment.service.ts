@@ -16,7 +16,7 @@ export class EnrollmentService {
 
   async create(createEnrollmentDto: CreateEnrollmentDto): Promise<Enrollment> {
     const enrollment = new Enrollment();
-    enrollment.enrollment_id = createEnrollmentDto.connectionId;
+    enrollment.enrollment_id = uuidv4();
     enrollment.student_number = createEnrollmentDto?.studentNumber;
     enrollment.student_full_name = createEnrollmentDto?.studentFullName;
     enrollment.student_birth_date = createEnrollmentDto?.studentBirthDate;

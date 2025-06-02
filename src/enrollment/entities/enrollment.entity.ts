@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, OneToMany, PrimaryColumn } from "typeorm";
+import { Column, Entity, OneToMany, PrimaryColumn } from "typeorm";
 import { Terms } from "./terms.entity";
 import { StudentInfo } from "./student_info.entity";
 import { Transcript } from "./transcript.entity";
@@ -6,14 +6,11 @@ import { Transcript } from "./transcript.entity";
 @Entity()
 export class Enrollment {
 
-    @PrimaryColumn()
+    @PrimaryColumn("uuid")
     enrollment_id: string;
 
     @Column()
     student_number: string;
-
-    @CreateDateColumn()
-    created_at: Date;
 
     @Column()
     student_full_name: string;
