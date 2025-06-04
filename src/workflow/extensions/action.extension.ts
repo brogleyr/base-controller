@@ -137,7 +137,7 @@ export class ExtendedAction implements IActionExtension {
                 
                 let aiSkillsResponse;
                 try {
-                  aiSkillsResponse = await this.aiSkillsService.getTranscriptAndSendToAI(connectionEnrollment);
+                  aiSkillsResponse = await this.aiSkillsService.analyzeTranscriptAi(connectionEnrollment);
                 } catch(err) {
                   console.error("AISkills response threw an error: ", err);
                 }

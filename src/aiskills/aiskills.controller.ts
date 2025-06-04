@@ -14,7 +14,7 @@ export class AiSkillsController {
   @ApiResponse({ status: 404, description: 'Transcript not found' })
   async getTranscriptResponse(): Promise<string> {
     try {
-      const result = await this.aiSkillsService.getTranscriptAndSendToAI(testTranscript);
+      const result = await this.aiSkillsService.analyzeTranscriptAi(testTranscript);
       return result;
     } catch (error) {
       console.error(error);
