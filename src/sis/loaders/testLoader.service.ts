@@ -1,156 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { SisLoaderService } from "./sisLoader.service";
-import { HighSchoolTermDto, HighSchoolTranscriptDto, HighSchoolCourseDto, TranscriptDto } from "../../dtos/transcript.dto";
+import { TranscriptDto } from "../../dtos/transcript.dto";
 import { testPhotoBase64 } from "./images/testPhoto";
+import { exampleCollegeStudent, exampleHighSchoolStudent } from "./exampleStudents";
+import { StudentIdDto } from "../../dtos/studentId.dto";
 
 
 @Injectable()
 export class TestLoaderService extends SisLoaderService {
-
-    exampleStudent = {
-        studentNumber: "0023",
-        studentFullName: "Michael Jordan",
-        fullName: "Michael Jordan",
-        studentBirthDate: "01/01/2000",
-        studentPhone: "(555)-555-5555",
-        studentEmail: "mj@digicred.com",
-        studentAddress: "1111 Basketball Ave, Wilmington, NC",
-        studentSsn: "111-11-1111",
-
-        guardianName: "Michael Jordan Sr",
-        guardianPhone: "(555)-555-5555",
-        guardianEmail: "mjs@digicred.com",
-
-        gradeLevel: "12",
-        graduationDate: "2025",
-        program: "Mathematics",
-
-        schoolName: "DigiCred College",
-        schoolAddress: "14328 NC Hwy 210, Rocky Point, NC 28457",
-        schoolPhone: "(555)-555-5555",
-        schoolFax: "(555)-555-5555",
-
-        schoolDistrict: "Secure County Public Schools",
-        schoolAccreditation: "SA",
-        schoolCeebCode: "555555",
-        schoolPrincipal: "John Meyers",
-
-        transcriptDate: "04/12/2025",
-        transcriptComments: "Not a real transcript, all grades are simulated",
-        
-        gpa: "4.1",
-        gpaUnweighted: "3.8",
-        classRank: "18 of 200",
-
-        attemptedCredits: "28.0",
-        earnedCredits: "28.0",
-        requiredCredits: "22.0",
-        remainingCredits: "0.0",
-
-        terms: [
-            {
-                termGradeLevel: "8",
-                termYear: "2020-2021",
-                termSchoolName: "Digital Middle School",
-                termCredit: "1.0",
-                cumulativeGpa: "0.0",
-                cumulativeUnweightedGpa: "0.0",
-                courses: [
-                    {
-                        courseCode: "MATH 5301",
-                        courseTitle: "Advanced Calculus I",
-                        grade: "90",
-                        courseWeight: "0.0",
-                        creditEarned: "1",
-                        UncRequirement: true
-                    },
-                    {
-                        courseCode: "MATH 6500",
-                        courseTitle: "Mathematical Statistics",
-                        grade: "90",
-                        courseWeight: "0.0",
-                        creditEarned: "1",
-                        UncRequirement: true
-                    },
-                    {
-                        courseCode: "ECON 5031",
-                        courseTitle: "Advanced Microeconomics",
-                        grade: "90",
-                        courseWeight: "0.0",
-                        creditEarned: "1",
-                        UncRequirement: true
-                    }
-                ]
-            },
-            {
-                termGradeLevel: "9",
-                termYear: "2021-2022",
-                termSchoolName: "DigiCred High School",
-                termCredit: "2.0",
-                cumulativeGpa: "4.0",
-                cumulativeUnweightedGpa: "0.0",
-                courses: [
-                    {
-                        courseCode: "MATH 6301",
-                        courseTitle: "Analysis I",
-                        grade: "99",
-                        courseWeight: "1.0",
-                        creditEarned: "1",
-                        UncRequirement: true
-                    },
-                    {
-                        courseCode: "MATH 6310",
-                        courseTitle: "Complex Analysis",
-                        grade: "90",
-                        courseWeight: "1.0",
-                        creditEarned: "1",
-                        UncRequirement: true
-                    },
-                    {
-                        courseCode: "ECON 5070",
-                        courseTitle: "Economic Data Analysis",
-                        grade: "90",
-                        courseWeight: "1.0",
-                        creditEarned: "1",
-                        UncRequirement: true
-                    },
-                    {
-                        courseCode: "ECON 6370",
-                        courseTitle: "Applied Forecasting",
-                        grade: "90",
-                        courseWeight: "1.0",
-                        creditEarned: "1",
-                        UncRequirement: true
-                    },
-                    {
-                        courseCode: "MGT 5001",
-                        courseTitle: "Managing Individuals and Teams",
-                        grade: "90",
-                        courseWeight: "1.0",
-                        creditEarned: "1",
-                        UncRequirement: true
-                    },
-                    {
-                        courseCode: "MGT 5020c",
-                        courseTitle: "Operations & Project Management",
-                        grade: "90",
-                        courseWeight: "1.0",
-                        creditEarned: "1",
-                        UncRequirement: true
-                    },
-                    {
-                        courseCode: "ENG 7030",
-                        courseTitle: "English Language",
-                        grade: "90",
-                        courseWeight: "1.0",
-                        creditEarned: "1",
-                        UncRequirement: true
-                    }
-                ]
-            },
-        ]
-
-    }
 
     constructor() {
         super();
@@ -158,92 +15,65 @@ export class TestLoaderService extends SisLoaderService {
 
     async load(): Promise<void> {};
 
-    async getStudentId(studentNumber: string): Promise<any> {
-        if (studentNumber === this.exampleStudent["studentNumber"]) {
-            let studentId = {
-                studentNumber: this.exampleStudent["studentNumber"],
-                studentFullName: this.exampleStudent["studentFullName"],
-                schoolName: this.exampleStudent["schoolName"],
-                studentBirthDate: this.exampleStudent["studentBirthDate"],
-                studentPhone: this.exampleStudent["studentPhone"],
-                studentEmail: this.exampleStudent["studentEmail"],
-                guardianName: this.exampleStudent["guardianName"],
-                guardianPhone: this.exampleStudent["guardianPhone"],
-                guardianEmail: this.exampleStudent["guardianEmail"],
-                program: this.exampleStudent["program"],
-                gradeLevel: this.exampleStudent["gradeLevel"],
-                graduationDate: this.exampleStudent["graduationDate"],
-                schoolPhone: this.exampleStudent["schoolPhone"],
-                studentPhoto: ""
-            }
-            try{ 
-                studentId.studentPhoto =  testPhotoBase64;
-                console.log(`StudentID photo successfully loaded`);
-            }
-            catch (err) {
-                console.log(`StudentID photo could not be loaded: ${err}`);
-            }
-
-            return studentId;
+    async getStudentId(studentNumber: string): Promise<StudentIdDto> {
+        if (!/^\d+$/.test(studentNumber)) {
+            return null;
         }
-        return null;
+
+        let exampleStudent;
+        if (studentNumber.length >= 4) {
+            exampleStudent = exampleCollegeStudent;
+        }
+        else {
+            exampleStudent = exampleHighSchoolStudent;
+        }
+
+        let studentId: StudentIdDto = {
+            studentNumber: studentNumber,
+
+            studentFullName: exampleStudent["studentFullName"],
+
+            studentBirthDate: exampleStudent["studentBirthDate"],
+            studentPhone: exampleStudent["studentPhone"],
+            studentEmail: exampleStudent["studentEmail"],
+
+            studentPhoto:  testPhotoBase64,
+
+            guardianName: exampleStudent["guardianName"],
+            guardianPhone: exampleStudent["guardianPhone"],
+            guardianEmail: exampleStudent["guardianEmail"],
+
+            emergencyName: null,
+            emergencyPhone: null,
+            emergencyEmail: null,
+            
+            gradeLevel: exampleStudent["gradeLevel"],
+            graduationDate: exampleStudent["graduationDate"],
+            program: exampleStudent["program"],
+
+            schoolName: exampleStudent["schoolName"],
+            schoolPhone: exampleStudent["schoolPhone"],
+
+            barcodeType: null,
+                
+            barcode: null,
+                
+            qrCode: null,
+            expiration: null
+        }
+
+        return studentId;
     }
 
     async getStudentTranscript(studentNumber: string): Promise<TranscriptDto> {
-        if (studentNumber === this.exampleStudent["studentNumber"]) {
-            let transcript = new HighSchoolTranscriptDto();
-
-            transcript.transcriptDate = this.exampleStudent["transcriptDate"];
-            transcript.transcriptComments = this.exampleStudent["transcriptComments"];
-
-            transcript.studentNumber = this.exampleStudent["studentNumber"];
-            transcript.studentFullName = this.exampleStudent["studentFullName"];
-            transcript.studentBirthDate = this.exampleStudent["studentBirthDate"];
-            transcript.studentPhone = this.exampleStudent["studentPhone"];
-            transcript.studentEmail  = this.exampleStudent["studentEmail"];
-            transcript.studentAddress = this.exampleStudent["studentAddress"];
-            transcript.studentSsn = this.exampleStudent["studentSsn"];
-
-            transcript.gradeLevel = this.exampleStudent["gradeLevel"];
-            transcript.graduationDate = this.exampleStudent["graduationDate"];
-            transcript.program = this.exampleStudent["program"];
-
-            transcript.schoolName = this.exampleStudent["schoolName"];
-            transcript.schoolAddress = this.exampleStudent["schoolAddress"];
-            transcript.schoolFax = this.exampleStudent["schoolFax"];
-            
-            transcript.gpa = this.exampleStudent["gpa"];
-            transcript.gpaUnweighted = this.exampleStudent["gpaUnweighted"];
-            transcript.classRank = this.exampleStudent["classRank"];
-
-            transcript.terms = [];
-            for (const term of this.exampleStudent["terms"]) {
-                let termDto = new HighSchoolTermDto();
-                termDto.termGradeLevel = term["termGradeLevel"];
-                termDto.termYear = term["termYear"];
-                termDto.termSchoolName = term["termSchoolName"];
-                termDto.termCredit = term["termCredit"];
-                termDto.termGpa = term["cumulativeGpa"];
-                termDto.termUnweightedGpa = term["cumulativeUnweightedGpa"];
-
-                termDto.courses = [];
-                for (const course of term.courses) {
-                    let courseDto = new HighSchoolCourseDto();
-                    courseDto.courseCode = course["courseCode"];
-                    courseDto.courseTitle = course["courseTitle"];
-                    courseDto.grade = course["grade"];
-                    courseDto.creditEarned = course["creditEarned"];
-                    courseDto.courseWeight = course["courseWeight"];
-                    if (course["UncRequirement"]) {
-                        if (!courseDto.flags) courseDto.flags = [];
-                        courseDto.flags.push("UNC Minimum Requirement");
-                    }
-                    termDto.courses.push(courseDto);
-                }
-                transcript.terms.push(termDto);
-            }
-            return transcript;
+        if (!/^\d+$/.test(studentNumber)) {
+            return null;
         }
-        return null;
+        if (studentNumber.length >= 4) {
+            return exampleCollegeStudent;
+        }
+        else {
+            return exampleHighSchoolStudent;
+        }
     }
 }
