@@ -2,8 +2,9 @@ import { Injectable } from "@nestjs/common";
 import { SisLoaderService } from "./sisLoader.service";
 import { TranscriptDto } from "../../dtos/transcript.dto";
 import { testPhotoBase64 } from "./images/testPhoto";
-import { exampleCollegeStudent, exampleHighSchoolStudent } from "./exampleStudents";
+import { exampleCollegeStudent, exampleHighSchoolStudent } from "./testLoaderData/exampleStudents";
 import { StudentIdDto } from "../../dtos/studentId.dto";
+import { validationStudents } from "./testLoaderData/validationStudents";
 
 
 @Injectable()
@@ -16,17 +17,8 @@ export class TestLoaderService extends SisLoaderService {
     async load(): Promise<void> {};
 
     async getStudentId(studentNumber: string): Promise<StudentIdDto> {
-        if (!/^\d+$/.test(studentNumber)) {
-            return null;
-        }
 
-        let exampleStudent;
-        if (studentNumber.length >= 4) {
-            exampleStudent = exampleCollegeStudent;
-        }
-        else {
-            exampleStudent = exampleHighSchoolStudent;
-        }
+        let exampleStudent = this.getStudent(studentNumber);
 
         let studentId: StudentIdDto = {
             studentNumber: studentNumber,
@@ -66,8 +58,16 @@ export class TestLoaderService extends SisLoaderService {
     }
 
     async getStudentTranscript(studentNumber: string): Promise<TranscriptDto> {
+        return this.getStudent(studentNumber);
+    }
+
+    getStudent(studentNumber: string): any {
         if (!/^\d+$/.test(studentNumber)) {
-            return null;
+            throw new Error(`studentNumber can only contain digits: , ${studentNumber}`);
+        }
+
+        if (studentNumber === "000001") {
+            return validationStudents[0];
         }
         if (studentNumber.length >= 4) {
             return exampleCollegeStudent;
