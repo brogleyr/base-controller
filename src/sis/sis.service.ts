@@ -37,7 +37,7 @@ export class SisService {
       console.log(`StudentId did not have required fields: ${error}`);
       return null;
     }
-    console.log(`StudentID successfully generated for ${studentNumber}`);
+    console.log(`StudentID returned successfully for ${studentNumber}`);
     return studentId;
   }
 
@@ -60,11 +60,12 @@ export class SisService {
 
     // Convert terms into a json string for flat structure
     for (const key in transcript) {
-      if (typeof transcript[key] !== "string") {
+      if (typeof transcript[key] !== "string" && transcript[key] !== null) {
         transcript[key] = JSON.stringify(transcript[key]);
       }
     }
 
+    console.log(`StudentID returned successfully for ${studentNumber}`);
     return transcript;
   }
 }
