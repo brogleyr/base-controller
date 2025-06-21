@@ -1,4 +1,4 @@
-import { DynamicModule, Module, Provider, Type } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
 import { SisLoaderService } from './sisLoader.service';
 import { TestLoaderService } from './testLoader.service';
 import { PdfLoaderService } from '../data-extract/pdfLoader.service';
@@ -6,11 +6,11 @@ import { RedisService } from '../../services/redis.service';
 import { CsvLoaderService } from '../data-extract/csvLoader.service';
 import { NhcsLoaderService } from './nhcsLoader.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { EllucianService } from 'src/ellucian/ellucian.service';
 import { EllucianModule } from 'src/ellucian/ellucian.module';
 import { HttpModule } from '@nestjs/axios';
 import { PenderLoaderService } from './penderLoader.service';
 import { CfccLoaderService } from './cfccLoader.service';
+import { MdcpsLoaderService } from './mdcpsLoader.service';
 
 @Module({})
 export class SisLoaderModule {
@@ -30,6 +30,7 @@ export class SisLoaderModule {
                 TestLoaderService,
                 NhcsLoaderService,
                 CfccLoaderService,
+                MdcpsLoaderService,
                 {
                     provide: SisLoaderService,
                     inject: [
@@ -38,6 +39,7 @@ export class SisLoaderModule {
                         NhcsLoaderService,
                         PenderLoaderService,
                         CfccLoaderService,
+                        MdcpsLoaderService,
                     ],
                     useFactory: (
                         configService: ConfigService,
@@ -45,6 +47,7 @@ export class SisLoaderModule {
                         nhcs: NhcsLoaderService,
                         pender: PenderLoaderService,
                         cfcc: CfccLoaderService,
+                        mdcps: MdcpsLoaderService
                     ): SisLoaderService => {
                         const type = configService.get<string>('LOAD_TYPE')?.toUpperCase();
                         switch (type) {
@@ -56,6 +59,8 @@ export class SisLoaderModule {
                                 return pender;
                             case 'CFCC':
                                 return cfcc;
+                            case 'MDCPS':
+                                return mdcps;
                             default:
                                 throw new Error(`Unknown LOAD_TYPE: ${type}`);
                         }
