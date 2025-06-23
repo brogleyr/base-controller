@@ -6,11 +6,14 @@ import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { firstValueFrom, map } from "rxjs";
 import { RedisService } from "../../services/redis.service";
+import { contains } from "class-validator";
 
 @Injectable()
 export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit {
 
     accessToken;
+
+    keyCounts;
 
     constructor(
         private readonly configService: ConfigService,
@@ -49,11 +52,11 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
         const cachedExpiry = await this.redisService.get(expiryKey);
 
 
-        if (cachedToken && cachedExpiry && Number(cachedExpiry) > Date.now()) {
-            this.accessToken = cachedToken;
-            console.log('Using cached access token');
-            return;
-        }
+        // if (cachedToken && cachedExpiry && Number(cachedExpiry) > Date.now()) {
+        //     this.accessToken = cachedToken;
+        //     console.log('Using cached access token');
+        //     return;
+        // }
 
         const baseUrl = this.configService.get("SIS_API_BASE_URL");
         const authUrl = `${baseUrl}/token`;
@@ -104,44 +107,85 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
 
         let rawStudents = [];
         let nextPage = studentUrl;
-        let count = 0;
-        let loopLimit = 5;
+        let pageNumber = 0;
         
-        while (nextPage && count < loopLimit) {
-            const response = await this.fetchFromSis(nextPage);
+        while (nextPage) {
+            let response;
+
+            const redisResponse = JSON.parse(await this.redisService.get(`page:${pageNumber}`));
+
+            if (redisResponse) {
+                response = redisResponse;
+            }
+            else {
+                response = await this.fetchFromSis(nextPage);
+                this.redisService.set(`page:${pageNumber}`, JSON.stringify(response));
+            }
+            
+            if (response === null) {
+                break;
+            }          
+
             console.log("Students in response: ", response["demographics"].length);
             rawStudents = rawStudents.concat(response["demographics"]);
 
             console.log("Total students: ", rawStudents.length);
 
             nextPage = response["pagination"]["next"];
-
             await new Promise(r => setTimeout(r, 1000));
-            count++;
+
+
+            pageNumber++;
         }
 
+        this.keyCounts = {};
         for (const rawStudent of rawStudents) {
             this.processStudent(rawStudent);
         }
+
+        console.log(this.keyCounts);
         
     }
 
-    private processStudent(rawStudent: any): void {
-        const studentNumber = JSON.parse(rawStudent.metadata?.custom?.api_student_id)[0]["student_id"] ?? null;
+    private async processStudent(rawStudent: any): Promise<void> {
+        const studentNumberData = JSON.parse(rawStudent.metadata?.custom?.api_student_id);
+        const studentNumber = studentNumberData.length > 0 ? studentNumberData[0]["student_id"] : null;
         if (!studentNumber) {
-            console.error("No student number given, skipping");
+            console.error("No student number given, unable to save student");
+            return;
+        }
+
+        const courseData = JSON.parse(rawStudent.metadata?.custom?.api_student_course_data);
+        const cumulativeData = JSON.parse(rawStudent.metadata?.custom?.api_cumulative_credits_gpa);
+
+        if (!Array.isArray(courseData) || !courseData) {
+            console.error("Course data was not found in student record:", studentNumber);
+            return;
+        }
+        if (!cumulativeData) {
+            console.error("Cumulative data was not found in student record:", studentNumber);
+            return;
         }
 
         let studentId = new StudentIdDto();
-
+        studentId.studentNumber = studentNumber;
+        const firstName = cumulativeData["first_name"] ?? "";
+        const lastName = cumulativeData["last_name"] ?? "";
+        studentId.studentFullName = firstName && lastName ? firstName + " " + lastName : null;
+        studentId.studentBirthDate = rawStudent.birthDate ?? null;
+        studentId.schoolName = "Miami-Dade County Public Schools";
+        
         this.redisService.set(`${studentNumber}:studentId`, JSON.stringify(studentId));
 
-
         let transcript = new TranscriptDto();
+        transcript.transcriptDate = new Date().toLocaleDateString();
+        transcript.studentNumber = studentNumber;
+        transcript.studentBirthDate = rawStudent.birthDate ?? null;
+        transcript.gpa = cumulativeData["GPA"]?? null;
+        transcript.earnedCredits = cumulativeData["cumulative_credits_earned"] ?? null;
 
-        this.redisService.set(`${studentNumber}:transcript`, JSON.stringify(transcript));
-        
-        console.log("Saved student:", studentNumber);
+
+        this.redisService.set(`${studentNumber}:transcript`, JSON.stringify(transcript));        
     }
 
     private async fetchFromSis(url: string): Promise<any> {
@@ -155,6 +199,7 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
             }));
             if (!response.data) {
                 console.error("HttpService response contained no body");
+                return null;
             }
             return response.data;
         } catch (error) {
