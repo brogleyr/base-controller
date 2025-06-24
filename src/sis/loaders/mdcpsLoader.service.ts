@@ -1,19 +1,18 @@
 import { HttpService } from "@nestjs/axios";
 import { StudentIdDto } from "../../dtos/studentId.dto";
-import { TranscriptDto } from "../../dtos/transcript.dto";
+import { CourseDto, TermDto, TranscriptDto } from "../../dtos/transcript.dto";
 import { SisLoaderService } from "./sisLoader.service";
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { firstValueFrom, map } from "rxjs";
 import { RedisService } from "../../services/redis.service";
-import { contains } from "class-validator";
 
 @Injectable()
 export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit {
 
     accessToken;
-
-    keyCounts;
+    idsSaved;
+    transcriptsSaved;
 
     constructor(
         private readonly configService: ConfigService,
@@ -34,30 +33,17 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
     }
 
     async getStudentId(studentNumber: string): Promise<StudentIdDto> {
-        let studentId: StudentIdDto = null;
+        const studentId: StudentIdDto = JSON.parse(await this.redisService.get(`${studentNumber}:studentId`));
         return studentId;
     }
 
 
     async getStudentTranscript(studentNumber: string): Promise<TranscriptDto> {
-        let transcript: TranscriptDto = null;
+        const transcript: TranscriptDto = JSON.parse(await this.redisService.get(`${studentNumber}:transcript`));
         return transcript;
     }
 
     private async getAccessToken() {
-        const tokenKey = 'accessToken';
-        const expiryKey = 'tokenExpiry';
-
-        const cachedToken = await this.redisService.get(tokenKey);
-        const cachedExpiry = await this.redisService.get(expiryKey);
-
-
-        // if (cachedToken && cachedExpiry && Number(cachedExpiry) > Date.now()) {
-        //     this.accessToken = cachedToken;
-        //     console.log('Using cached access token');
-        //     return;
-        // }
-
         const baseUrl = this.configService.get("SIS_API_BASE_URL");
         const authUrl = `${baseUrl}/token`;
 
@@ -92,100 +78,7 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
             return;
         }
 
-        const currentTime = Date.now();
-        const expiresIn = "expires_in" in response ? response["expires_in"] * 1000 : 0;
-
-        await this.redisService.set(tokenKey, response, expiresIn);
-        await this.redisService.set(expiryKey, (currentTime + expiresIn).toString());
-
         this.accessToken = response["access_token"];
-    }
-
-    private async loadStudentData(): Promise<void> {
-        const baseUrl = this.configService.get("SIS_API_BASE_URL");
-        const studentUrl = baseUrl + "/demographics";
-
-        let rawStudents = [];
-        let nextPage = studentUrl;
-        let pageNumber = 0;
-        
-        while (nextPage) {
-            let response;
-
-            const redisResponse = JSON.parse(await this.redisService.get(`page:${pageNumber}`));
-
-            if (redisResponse) {
-                response = redisResponse;
-            }
-            else {
-                response = await this.fetchFromSis(nextPage);
-                this.redisService.set(`page:${pageNumber}`, JSON.stringify(response));
-            }
-            
-            if (response === null) {
-                break;
-            }          
-
-            console.log("Students in response: ", response["demographics"].length);
-            rawStudents = rawStudents.concat(response["demographics"]);
-
-            console.log("Total students: ", rawStudents.length);
-
-            nextPage = response["pagination"]["next"];
-            await new Promise(r => setTimeout(r, 1000));
-
-
-            pageNumber++;
-        }
-
-        this.keyCounts = {};
-        for (const rawStudent of rawStudents) {
-            this.processStudent(rawStudent);
-        }
-
-        console.log(this.keyCounts);
-        
-    }
-
-    private async processStudent(rawStudent: any): Promise<void> {
-        const studentNumberData = JSON.parse(rawStudent.metadata?.custom?.api_student_id);
-        const studentNumber = studentNumberData.length > 0 ? studentNumberData[0]["student_id"] : null;
-        if (!studentNumber) {
-            console.error("No student number given, unable to save student");
-            return;
-        }
-
-        const courseData = JSON.parse(rawStudent.metadata?.custom?.api_student_course_data);
-        const cumulativeData = JSON.parse(rawStudent.metadata?.custom?.api_cumulative_credits_gpa);
-
-        if (!Array.isArray(courseData) || !courseData) {
-            console.error("Course data was not found in student record:", studentNumber);
-            return;
-        }
-        if (!cumulativeData) {
-            console.error("Cumulative data was not found in student record:", studentNumber);
-            return;
-        }
-
-        let studentId = new StudentIdDto();
-        studentId.studentNumber = studentNumber;
-        const firstName = cumulativeData["first_name"] ?? "";
-        const lastName = cumulativeData["last_name"] ?? "";
-        studentId.studentFullName = firstName && lastName ? firstName + " " + lastName : null;
-        studentId.studentBirthDate = rawStudent.birthDate ?? null;
-        studentId.schoolName = "Miami-Dade County Public Schools";
-        
-        this.redisService.set(`${studentNumber}:studentId`, JSON.stringify(studentId));
-
-        let transcript = new TranscriptDto();
-        transcript.transcriptDate = new Date().toLocaleDateString();
-        transcript.studentNumber = studentNumber;
-        transcript.studentBirthDate = rawStudent.birthDate ?? null;
-        transcript.gpa = cumulativeData["GPA"]?? null;
-        transcript.earnedCredits = cumulativeData["cumulative_credits_earned"] ?? null;
-
-
-        this.redisService.set(`${studentNumber}:transcript`, JSON.stringify(transcript));        
     }
 
     private async fetchFromSis(url: string): Promise<any> {
@@ -206,5 +99,122 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
             console.error(`Error accessing ${url}:`, error.message);
             return null;
         }
+    }
+
+    private async loadStudentData(): Promise<void> {
+        const baseUrl = this.configService.get("SIS_API_BASE_URL");
+        const studentUrl = baseUrl + "/demographics";
+
+        let nextPage = studentUrl;
+        let pageNumber = 0;
+        this.idsSaved = 0;
+        this.transcriptsSaved = 0;
+        
+        while (nextPage) {
+            let response = await this.fetchFromSis(nextPage);
+            
+            if (!response) {
+                break;
+            }
+
+            const studentData = response["demographics"];
+
+            for (const rawStudent of studentData) {
+                this.processStudent(rawStudent);
+            }
+
+            nextPage = response["pagination"]["next"];
+            pageNumber++;
+            await new Promise(r => setTimeout(r, 1000));
+        }
+
+        console.log("Total studentids saved:", this.idsSaved);
+        console.log("Total transcripts saved:", this.transcriptsSaved);
+    }
+
+    private processStudent(rawStudent: any): void {
+        const studentId = this.parseStudentId(rawStudent);
+        if (studentId) {
+            this.redisService.set(`${studentId.studentNumber}:studentId`, JSON.stringify(studentId));
+            this.idsSaved++;
+        }
+
+        const transcript = this.parseTranscript(rawStudent);
+        if (transcript) {
+            this.redisService.set(`${transcript.studentNumber}:transcript`, JSON.stringify(transcript)); 
+            this.transcriptsSaved++;
+
+        }
+    }
+
+    parseStudentId(rawStudent: any): StudentIdDto {
+        const studentNumberData = JSON.parse(rawStudent.metadata?.custom?.api_student_id);
+        const studentNumber = studentNumberData.length > 0 ? studentNumberData[0]["student_id"] : null;
+        if (!studentNumber) {
+            return null;
+        }
+
+        const cumulativeData = JSON.parse(rawStudent.metadata?.custom?.api_cumulative_credits_gpa);
+        if (!cumulativeData) {
+            return null;
+        }
+
+        let studentId = new StudentIdDto();
+        studentId.studentNumber = studentNumber;
+        const firstName = cumulativeData[0]["first_name"] ?? "";
+        const lastName = cumulativeData[0]["last_name"] ?? "";
+        studentId.studentFullName = firstName && lastName ? firstName + " " + lastName : null;
+        studentId.studentBirthDate = rawStudent.birthDate ?? null;
+        studentId.schoolName = "Miami-Dade County Public Schools";
+
+        return studentId;
+    }
+
+    parseTranscript(rawStudent: any): TranscriptDto {
+        const studentNumberData = JSON.parse(rawStudent.metadata?.custom?.api_student_id);
+        const studentNumber = studentNumberData.length > 0 ? studentNumberData[0]["student_id"] : null;
+        if (!studentNumber) {
+            return null;
+        }
+
+        const courseData = JSON.parse(rawStudent.metadata?.custom?.api_student_course_data);
+        const cumulativeData = JSON.parse(rawStudent.metadata?.custom?.api_cumulative_credits_gpa);
+        if (!courseData || !cumulativeData) {
+            return null;
+        }
+
+        let transcript = new TranscriptDto();
+        transcript.transcriptDate = new Date().toLocaleDateString();
+        transcript.studentNumber = studentNumber;
+        transcript.studentBirthDate = rawStudent.birthDate ?? null;
+        transcript.gpa = cumulativeData[0]["GPA"] ?? null;
+        transcript.earnedCredits = cumulativeData[0]["cumulative_credits_earned"] ?? null;
+
+        let termCourses = {}
+        for (const rawCourse of courseData) {
+            let course = new CourseDto();
+
+            course.grade = rawCourse["Grade"];
+            course.courseTitle = rawCourse["Course Title"];
+            course.gradePoints = rawCourse["gpaPoints"];
+            course.courseCode = rawCourse["Course Code"];
+            course.creditEarned = rawCourse["credits_earned"];
+
+            if (!(rawCourse["syear"] in termCourses)) {
+                termCourses[rawCourse["syear"]] = [];
+            }
+            termCourses[rawCourse["syear"]].push(course);
+        }
+
+        let terms: TermDto[] = [];
+        for (const termYear in termCourses) {
+            let term = new TermDto();
+            term.termYear = termYear;
+            term.courses = termCourses[termYear];
+            terms.push(term);
+        }
+        transcript.terms = terms;
+
+        return transcript;
     }
 }
