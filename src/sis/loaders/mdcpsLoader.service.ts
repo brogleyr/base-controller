@@ -33,14 +33,37 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
     }
 
     async getStudentId(studentNumber: string): Promise<StudentIdDto> {
-        const studentId: StudentIdDto = JSON.parse(await this.redisService.get(`${studentNumber}:studentId`));
-        return studentId;
+        // Fetch the unique identifier from Redis
+        const apiStudentId = await this.redisService.get(`${studentNumber}:apiStudentId`);
+        if (!apiStudentId) {
+            return null;
+        }
+        // Fetch student data from API using the identifier
+        await this.getAccessToken();
+        const baseUrl = this.configService.get("SIS_API_BASE_URL");
+        const url = `${baseUrl}/demographics/${apiStudentId}`;
+        const response = await this.fetchFromSis(url);
+        if (!response || !("demographics" in response)) {
+            return null;
+        }
+        return this.parseStudentId(response.demographics);
     }
 
-
     async getStudentTranscript(studentNumber: string): Promise<TranscriptDto> {
-        const transcript: TranscriptDto = JSON.parse(await this.redisService.get(`${studentNumber}:transcript`));
-        return transcript;
+        // Fetch the unique identifier from Redis
+        const apiStudentId = await this.redisService.get(`${studentNumber}:apiStudentId`);
+        if (!apiStudentId) {
+            return null;
+        }
+        // Fetch student data from API using the identifier
+        await this.getAccessToken();
+        const baseUrl = this.configService.get("SIS_API_BASE_URL");
+        const url = `${baseUrl}/demographics/${apiStudentId}`;
+        const response = await this.fetchFromSis(url);
+        if (!response || !("demographics" in response)) {
+            return null;
+        }
+        return this.parseTranscript(response.demographics);
     }
 
     private async getAccessToken() {
@@ -128,22 +151,17 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
             await new Promise(r => setTimeout(r, 1000));
         }
 
-        console.log("Total studentids saved:", this.idsSaved);
-        console.log("Total transcripts saved:", this.transcriptsSaved);
+        console.log("Total student identifiers saved:", this.idsSaved);
     }
 
     private processStudent(rawStudent: any): void {
-        const studentId = this.parseStudentId(rawStudent);
-        if (studentId) {
-            this.redisService.set(`${studentId.studentNumber}:studentId`, JSON.stringify(studentId));
+        const studentNumberData = JSON.parse(rawStudent.metadata?.custom?.api_student_id);
+        const studentNumber = studentNumberData.length > 0 ? studentNumberData[0]["student_id"] : null;
+        // Store only the unique identifier in Redis
+        const apiStudentId = rawStudent.sourcedId;
+        if (apiStudentId) {
+            this.redisService.set(`${studentNumber}:apiStudentId`, apiStudentId);
             this.idsSaved++;
-        }
-
-        const transcript = this.parseTranscript(rawStudent);
-        if (transcript) {
-            this.redisService.set(`${transcript.studentNumber}:transcript`, JSON.stringify(transcript)); 
-            this.transcriptsSaved++;
-
         }
     }
 
@@ -187,6 +205,7 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
         transcript.transcriptDate = new Date().toLocaleDateString();
         transcript.studentNumber = studentNumber;
         transcript.studentBirthDate = rawStudent.birthDate ?? null;
+        transcript.schoolName = "Miami-Dade County Public Schools";
         transcript.gpa = cumulativeData[0]["GPA"] ?? null;
         transcript.earnedCredits = cumulativeData[0]["cumulative_credits_earned"] ?? null;
 
