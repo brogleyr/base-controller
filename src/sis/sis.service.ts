@@ -65,7 +65,7 @@ export class SisService {
       }
     }
 
-    console.log(`StudentID returned successfully for ${studentNumber}`);
+    console.log(`Student transcript returned successfully for ${studentNumber}`);
     return transcript;
   }
 }

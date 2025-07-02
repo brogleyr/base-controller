@@ -1,5 +1,3 @@
-import { TranscriptDto } from "src/dtos/transcript.dto";
-
 export const validationStudents = [
     {
         "transcriptDate": "6/21/2025",
@@ -161,6 +159,6 @@ export const validationStudents = [
                     }
                 ]
             }
-]
+        ]
     }
 ]
