@@ -41,6 +41,13 @@ describe('MdcpsLoaderService', () => {
                 set: jest.fn(),
             }
         },
+        {
+            provide: HttpService,
+            useValue: {
+                post: jest.fn(),
+                get: jest.fn(),
+            }
+        }
       ],
     }).compile();
 
@@ -130,8 +137,8 @@ describe('MdcpsLoaderService', () => {
       );
       (service as any).accessToken = null;
       await (service as any).getAccessToken();
-      expect((service as any).accessToken).toBe(mockToken);
       expect(httpServicePost).toHaveBeenCalled();
+      expect((service as any).accessToken).toBe(mockToken);
     });
 
     it('should not set accessToken if response does not contain access_token', async () => {

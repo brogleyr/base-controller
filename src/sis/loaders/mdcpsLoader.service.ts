@@ -66,7 +66,7 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
         return this.parseTranscript(response.demographics);
     }
 
-    private async getAccessToken() {
+    async getAccessToken() {
         const baseUrl = this.configService.get("SIS_API_BASE_URL");
         const authUrl = `${baseUrl}/token`;
 
@@ -108,10 +108,9 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
         console.log("HttpService call to: ", url);
         try {
             const response = await firstValueFrom(this.httpService.get(url, {
-            headers: {
-                Authorization: `Bearer ${this.accessToken}`
-            }
-
+                headers: {
+                    Authorization: `Bearer ${this.accessToken}`
+                }
             }));
             if (!response.data) {
                 console.error("HttpService response contained no body");
@@ -204,6 +203,9 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
         let transcript = new TranscriptDto();
         transcript.transcriptDate = new Date().toLocaleDateString();
         transcript.studentNumber = studentNumber;
+        const firstName = cumulativeData[0]["first_name"] ?? "";
+        const lastName = cumulativeData[0]["last_name"] ?? "";
+        transcript.studentFullName = firstName && lastName ? firstName + " " + lastName : null;
         transcript.studentBirthDate = rawStudent.birthDate ?? null;
         transcript.schoolName = "Miami-Dade County Public Schools";
         transcript.gpa = cumulativeData[0]["GPA"] ?? null;
