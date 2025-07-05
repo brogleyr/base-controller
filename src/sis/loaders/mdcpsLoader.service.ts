@@ -84,7 +84,7 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
                 data, 
                 {
                     headers: { 
-                        "Authorization": `Basic ${authEncoded}}`,
+                        "Authorization": `Basic ${authEncoded}`,
                         "Content-Type": "application/x-www-form-urlencoded"
                     }
                 }

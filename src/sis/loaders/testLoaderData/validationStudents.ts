@@ -10,7 +10,7 @@ export const validationStudents = [
         "studentAddress": "testAddress",
         "studentSsn": "testSsn",
         "program": "testProgram",
-        "schoolName": "testSchool",
+        "schoolName": "Cape Fear Community College",
         "schoolPhone": "testPhone",
         "schoolAddress": "testAddress",
         "gpa": "testGpa",
