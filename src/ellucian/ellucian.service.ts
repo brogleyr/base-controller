@@ -291,7 +291,7 @@ export class EllucianService extends SisLoaderService {
       .filter(e => e.academicSource === "all")
       .map(e => e.academicPeriod.id) : [];
 
-    const sectionIds = transcriptGrades? transcriptGrades.map(e => e.course.section.id) : [];
+    const sectionIds = transcriptGrades ? transcriptGrades.map(e => e.course.section.id) : [];
 
     const secondaryCalls = [
       // Calls that require gradePointAverages (Terms)
@@ -364,6 +364,8 @@ export class EllucianService extends SisLoaderService {
 
       course.courseCode = sectionResponses[sectionId]["secLocalGovtCodes"][0]["secLocalGovtCodes"] ?? null;
       course.courseTitle = sectionResponses[sectionId]["titles"][0]["value"] ?? null
+      course.startDate = sectionResponses[sectionId]["startOn"] ?? null;
+      course.endDate = sectionResponses[sectionId]["endOn"] ?? null;
       course.grade = gradeDefinitionResponses[sectionId]["grade"]["value"] ?? null;
       course.creditEarned = transcriptGrade?.credit?.earnedCredit?.toFixed(2) ?? null;
       course.gradePoints = transcriptGrade?.credit?.qualityPoint?.gpa?.toFixed(2) ?? null;
