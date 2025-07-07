@@ -66,8 +66,10 @@ export class TestLoaderService extends SisLoaderService {
             throw new Error(`studentNumber can only contain digits: , ${studentNumber}`);
         }
 
-        if (studentNumber === "000001") {
-            return validationStudents[0];
+        const validationStudentNumbers = validationStudents.map(student => student.studentNumber);
+
+        if (validationStudentNumbers.includes(studentNumber)) {
+            return validationStudents.find(student => student.studentNumber === studentNumber);
         }
         if (studentNumber.length >= 4) {
             return exampleCollegeStudent;

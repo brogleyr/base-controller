@@ -86,7 +86,7 @@ export const validationStudents = [
                 termHoursEarned: '1.00',
                 termGradePoints: '1.00',
                 courses: [
-                     {
+                    {
                         courseCode: '03-01',
                         courseTitle: 'Term3-Course1',
                         grade: 'D',
@@ -123,7 +123,7 @@ export const validationStudents = [
                 termHoursEarned: '4.00',
                 termGradePoints: '16.00',
                 courses: [
-                     {
+                    {
                         courseCode: '04-01',
                         courseTitle: 'Term4-Course1',
                         grade: 'A',
@@ -174,6 +174,76 @@ export const validationStudents = [
                         hoursPossible: '1.00',
                         hoursEarned: '1.00',
                         repeat: false
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "transcriptDate": "7/7/2025",
+        "studentNumber": "000002",
+        "studentFullName": "Ram Ambo",
+        "studentBirthDate": "2000-02-02",
+        "schoolName": "Miami-Dade County Public Schools",
+        "gpa": 3.778,
+        "earnedCredits": 9,
+        "terms": [
+            {
+                "termYear": "2024",
+                "courses": [
+                    {
+                        "grade": "A",
+                        "courseTitle": "Induction - Airflow Cool Exh Rev",
+                        "courseCode": "AMT0776F5",
+                        "creditEarned": 1
+                    },
+                    {
+                        "grade": "A",
+                        "courseTitle": "Fluid - Lines & Fittings",
+                        "courseCode": "AMT0705G4",
+                        "creditEarned": 1
+                    },
+                    {
+                        "grade": "A",
+                        "courseTitle": "Clean Cor - Weight & Balance",
+                        "courseCode": "AMT0705G3",
+                        "creditEarned": 1
+                    },
+                    {
+                        "grade": "B",
+                        "courseTitle": "Materials - & Processes/NDT",
+                        "courseCode": "AMT0705G5",
+                        "creditEarned": 1
+                    },
+                    {
+                        "grade": "A",
+                        "courseTitle": "Basic - Electricity",
+                        "courseCode": "AMT0705G1",
+                        "creditEarned": 1
+                    },
+                    {
+                        "grade": "A",
+                        "courseTitle": "Forms Rec - Pub Mech Priv Limit",
+                        "courseCode": "AMT0705G7",
+                        "creditEarned": 1
+                    },
+                    {
+                        "grade": "A",
+                        "courseTitle": "Aircraft - Drawing",
+                        "courseCode": "AMT0705G2",
+                        "creditEarned": 1
+                    },
+                    {
+                        "grade": "A",
+                        "courseTitle": "Basic Phy - Ground Op &Servicing",
+                        "courseCode": "AMT0705G8",
+                        "creditEarned": 1
+                    },
+                    {
+                        "grade": "B",
+                        "courseTitle": "Math - ematics",
+                        "courseCode": "AMT0705G6",
+                        "creditEarned": 1
                     }
                 ]
             }
