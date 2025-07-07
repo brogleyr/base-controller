@@ -166,7 +166,7 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
 
     parseStudentId(rawStudent: any): StudentIdDto {
         const studentNumberData = JSON.parse(rawStudent.metadata?.custom?.api_student_id);
-        const studentNumber = studentNumberData.length > 0 ? studentNumberData[0]["student_id"] : null;
+        const studentNumber = studentNumberData.length > 0 ? studentNumberData[0]["student_id"].toString() : null;
         if (!studentNumber) {
             return null;
         }
@@ -189,7 +189,7 @@ export class MdcpsLoaderService extends SisLoaderService implements OnModuleInit
 
     parseTranscript(rawStudent: any): TranscriptDto {
         const studentNumberData = JSON.parse(rawStudent.metadata?.custom?.api_student_id);
-        const studentNumber = studentNumberData.length > 0 ? studentNumberData[0]["student_id"] : null;
+        const studentNumber = studentNumberData.length > 0 ? studentNumberData[0]["student_id"].toString() : null;
         if (!studentNumber) {
             return null;
         }

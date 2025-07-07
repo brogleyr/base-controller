@@ -82,7 +82,7 @@ describe('MdcpsLoaderService', () => {
 
       const result = await service.getStudentId('12345678');
       expect(result).toBeDefined();
-      expect(result.studentNumber).toBe(12345678);
+      expect(result.studentNumber).toBe("12345678");
       expect(result.studentFullName).toBe('Ram Ambo');
     });
 
@@ -111,7 +111,7 @@ describe('MdcpsLoaderService', () => {
 
       const result = await service.getStudentTranscript('12345678');
       expect(result).toBeDefined();
-      expect(result.studentNumber).toBe(12345678);
+      expect(result.studentNumber).toBe("12345678");
       expect(result.terms.length).toBeGreaterThan(0);
     });
 
@@ -226,7 +226,7 @@ describe('MdcpsLoaderService', () => {
       const rawStudent = mdcpsTestResponse.demographics[0];
       const result = service.parseStudentId(rawStudent);
       expect(result).toBeDefined();
-      expect(result.studentNumber).toBe(12345678);
+      expect(result.studentNumber).toBe("12345678");
       expect(result.studentFullName).toBe('Ram Ambo');
     });
 
@@ -248,7 +248,7 @@ describe('MdcpsLoaderService', () => {
       const rawStudent = mdcpsTestResponse.demographics[0];
       const result = service.parseTranscript(rawStudent);
       expect(result).toBeDefined();
-      expect(result.studentNumber).toBe(12345678);
+      expect(result.studentNumber).toBe("12345678");
       expect(result.terms.length).toBeGreaterThan(0);
     });
 
