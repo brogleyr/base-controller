@@ -81,7 +81,7 @@ export class CfccLoaderService extends SisLoaderService {
     formatTranscriptDates(transcript: TranscriptDto): void {
         // Change Birth Date to MM/DD/YYYY format
         if (transcript.studentBirthDate) {
-            const birthDate = new Date(transcript.studentBirthDate).toLocaleDateString("es-US", {
+            const birthDate = new Date(transcript.studentBirthDate).toLocaleDateString("en-US", {
                 year: "numeric",
                 month: "2-digit",
                 day: "2-digit"
@@ -92,14 +92,14 @@ export class CfccLoaderService extends SisLoaderService {
         (transcript.terms as TermDto[]).forEach(term => {
             (term.courses as CourseDto[]).forEach(course => {
                 if (course.startDate) {
-                    course.startDate = new Date(course.startDate).toLocaleDateString("es-US", {
+                    course.startDate = new Date(course.startDate).toLocaleDateString("en-US", {
                         year: "2-digit",
                         month: "2-digit",
                         day: "2-digit"
                     });
                 }
                 if (course.endDate) {
-                    course.endDate = new Date(course.endDate).toLocaleDateString("es-US", {
+                    course.endDate = new Date(course.endDate).toLocaleDateString("en-US", {
                         year: "2-digit",
                         month: "2-digit",
                         day: "2-digit"
