@@ -325,9 +325,6 @@ export class EllucianService extends SisLoaderService {
     transcript.studentAddress = this.getAddress(ellucianPerson);
     transcript.studentSsn = ellucianPerson.credentials.find(e => e.type === "taxIdentificationNumber")?.value ?? null;
     transcript.program = academicProgram;
-    transcript.schoolName = "Cape Fear Community College";
-    transcript.schoolPhone = "910-362-7000";
-    transcript.schoolAddress = "411 N. Front Street\nWilmington, NC 28401";
 
     const cumulativeGpa = gradePointAverages?.cumulative.find(e => e.academicSource === "all");
     if (cumulativeGpa) {
