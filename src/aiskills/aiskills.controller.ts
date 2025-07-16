@@ -1,25 +1,28 @@
-// src/aiskills/aiskills.controller.ts
-import { Controller, Get, Query, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiTags, ApiQuery } from '@nestjs/swagger';
 import { AiSkillsService } from './aiskills.service';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { testTranscript } from './testTranscript';
+
+import type { jobSkillExtendedType } from './types/jobSkillsExtended.type';
 
 @ApiTags('AI Skills')
 @Controller()
 export class AiSkillsController {
   constructor(private readonly aiSkillsService: AiSkillsService) {}
 
-  @Get()
-  @ApiResponse({ status: 200, description: 'OpenAI Response' })
-  @ApiResponse({ status: 404, description: 'Transcript not found' })
-  async getTranscriptResponse(): Promise<string> {
-    try {
-      const result = await this.aiSkillsService.getTranscriptAndSendToAI(testTranscript);
-      return result;
-    } catch (error) {
-      console.error(error);
-      throw new HttpException(error.message || 'Failed to process request', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
-
+  /* /aiskills/job_suggest?studentId=0023 */
+  @Get('job_suggest')
+@ApiQuery({ name: 'studentId', required: true, type: String })
+async jobSuggest(
+  @Query('studentId') studentId: string,
+): Promise<jobSkillExtendedType> {
+  return await this.aiSkillsService.jobSuggest(studentId);
 }
+
+  /* /aiskills/skill_report?studentId=0023 */
+  @Get('skill_report')
+  @ApiQuery({ name: 'studentId', required: true, type: String })
+  async skillReport(@Query('studentId') studentId: string): Promise<string> {
+    return this.aiSkillsService.skillReport(studentId);
+  }
+}
+
