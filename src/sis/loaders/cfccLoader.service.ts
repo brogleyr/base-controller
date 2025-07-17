@@ -1,6 +1,6 @@
 import { HttpService } from "@nestjs/axios";
 import { StudentIdDto } from "../../dtos/studentId.dto";
-import { TranscriptDto } from "../../dtos/transcript.dto";
+import { CourseDto, TermDto, TranscriptDto } from "../../dtos/transcript.dto";
 import { EllucianService } from "../../ellucian/ellucian.service";
 import { SisLoaderService } from "./sisLoader.service";
 import { firstValueFrom } from "rxjs";
@@ -26,13 +26,21 @@ export class CfccLoaderService extends SisLoaderService {
 
     async getStudentId(studentNumber: string): Promise<StudentIdDto> {
         let studentId: StudentIdDto = await this.ellucianService.getStudentId(studentNumber);
+        studentId.schoolName = "Cape Fear Community College";
         studentId.studentPhoto = await this.getStudentPhoto(studentNumber);
         return studentId;
     }
 
 
     async getStudentTranscript(studentNumber: string): Promise<TranscriptDto> {
-        return this.ellucianService.getStudentTranscript(studentNumber);
+        let transcript = await this.ellucianService.getStudentTranscript(studentNumber);
+        transcript.schoolName = "Cape Fear Community College";
+        transcript.schoolPhone = "910-362-7000";
+        transcript.schoolAddress = "411 N. Front Street\nWilmington, NC 28401";
+
+        this.formatTranscriptDates(transcript);
+
+        return transcript;
     }
 
     async getStudentPhoto(studentNumber: string): Promise<string> {
@@ -68,5 +76,37 @@ export class CfccLoaderService extends SisLoaderService {
             .toBuffer();
 
         return compressedPhotoBuffer.toString("base64");
+    }
+
+    formatTranscriptDates(transcript: TranscriptDto): void {
+        // Change Birth Date to MM/DD/YYYY format
+        if (transcript.studentBirthDate) {
+            const birthDate = new Date(transcript.studentBirthDate).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit"
+            });
+            transcript.studentBirthDate = birthDate;
+        }
+        // Course start and end dates to MM/DD/YY format
+        (transcript.terms as TermDto[]).forEach(term => {
+            (term.courses as CourseDto[]).forEach(course => {
+                if (course.startDate) {
+                    course.startDate = new Date(course.startDate).toLocaleDateString("en-US", {
+                        year: "2-digit",
+                        month: "2-digit",
+                        day: "2-digit"
+                    });
+                }
+                if (course.endDate) {
+                    course.endDate = new Date(course.endDate).toLocaleDateString("en-US", {
+                        year: "2-digit",
+                        month: "2-digit",
+                        day: "2-digit"
+                    });
+                }
+            });
+        });
+
     }
 }

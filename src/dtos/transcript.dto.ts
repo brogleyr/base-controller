@@ -92,13 +92,13 @@ export class CollegeTermDto extends TermDto {
     termSeason: string;
     academicStanding: string;
 
-    termHoursPossible
-    termHoursEarned
-    termGradePoints
-    cumulativeHoursPossible
-    cumulativeHoursEarned
-    cumulativeGradePoints
-    cumulativeGpa
+    termHoursPossible;
+    termHoursEarned;
+    termGradePoints;
+    cumulativeHoursPossible;
+    cumulativeHoursEarned;
+    cumulativeGradePoints;
+    cumulativeGpa;
 }
 
 export class CourseDto {
@@ -109,6 +109,9 @@ export class CourseDto {
 
     creditEarned: string;
     gradePoints: string;
+
+    startDate: string;
+    endDate: string;
 
     transfer: boolean;
     inProgress: boolean;
