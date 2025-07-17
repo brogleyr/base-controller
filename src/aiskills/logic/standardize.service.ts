@@ -1,6 +1,4 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import * as stringSimilarity from 'string-similarity';
+import { stringSimilarity } from "string-similarity-js";
 
 import { courseSkillData } from '../data/courseSkills';
 const standardizedCourses: [string, string][] = courseSkillData.map(course => 
@@ -19,8 +17,8 @@ export function standardizeCourses(courses: any[]): Array<{ courseCode: string; 
 
       for (const [stdTitle, stdCode] of standardizedCourses) {
         
-        const titleScore = stringSimilarity.compareTwoStrings(inputTitle, stdTitle.toUpperCase());
-        const codeScore = stringSimilarity.compareTwoStrings(inputCode, stdCode.toUpperCase());
+        const titleScore = stringSimilarity(inputTitle, stdTitle.toUpperCase());
+        const codeScore = stringSimilarity(inputCode, stdCode.toUpperCase());
 
         const finalScore = 0.7 * titleScore + 0.3 * codeScore;
 
