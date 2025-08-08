@@ -7,6 +7,7 @@ import { firstValueFrom } from "rxjs";
 import * as sharp from "sharp";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { genericPhoto } from "./images/testPhoto";
 
 @Injectable()
 export class CfccLoaderService extends SisLoaderService {
@@ -64,13 +65,20 @@ export class CfccLoaderService extends SisLoaderService {
         catch (err) {
             console.error(`Error fetching photo for student ${studentNumber} from ${imageUrl}:`, err);
         }
+
+        let photoBuffer:Buffer = null;
         if (!response || !response.data) {
             console.error("No image data found for student: ", studentNumber);
-            return null;
+            console.error("Using generic image", studentNumber);
+            // Use the generic image for no photo
+            photoBuffer = Buffer.from(genericPhoto);
         }
-        const rawPhotoBuffer = Buffer.from(response.data);
+        else {
+            // Use the photo from the server
+            photoBuffer = Buffer.from(response.data);
+        }
 
-        const compressedPhotoBuffer = await sharp(rawPhotoBuffer)
+        const compressedPhotoBuffer = await sharp(photoBuffer)
             .resize(256)
             .webp({ quality: 50 })
             .toBuffer();

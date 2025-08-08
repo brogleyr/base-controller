@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { SisLoaderService } from "./sisLoader.service";
 import { TranscriptDto } from "../../dtos/transcript.dto";
-import { testPhotoBase64 } from "./images/testPhoto";
+import { testFemalePhotoBase64 } from "./images/testPhoto";
+import { genericPhoto } from "./images/testPhoto";
 import { exampleCollegeStudent, exampleHighSchoolStudent } from "./testLoaderData/exampleStudents";
 import { StudentIdDto } from "../../dtos/studentId.dto";
 import { validationStudents } from "./testLoaderData/validationStudents";
@@ -29,7 +30,7 @@ export class TestLoaderService extends SisLoaderService {
             studentPhone: exampleStudent["studentPhone"],
             studentEmail: exampleStudent["studentEmail"],
 
-            studentPhoto:  testPhotoBase64,
+            studentPhoto:  genericPhoto,
 
             guardianName: exampleStudent["guardianName"],
             guardianPhone: exampleStudent["guardianPhone"],
