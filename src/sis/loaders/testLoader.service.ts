@@ -6,20 +6,50 @@ import { genericPhoto } from "./images/testPhoto";
 import { exampleCollegeStudent, exampleHighSchoolStudent } from "./testLoaderData/exampleStudents";
 import { StudentIdDto } from "../../dtos/studentId.dto";
 import { validationStudents } from "./testLoaderData/validationStudents";
-
+import * as sharp from "sharp";
+import { firstValueFrom } from "rxjs";
+import { HttpService } from "@nestjs/axios";
 
 @Injectable()
 export class TestLoaderService extends SisLoaderService {
 
-    constructor() {
+    constructor(
+        private readonly httpService: HttpService
+    ) {
         super();
     };
+
 
     async load(): Promise<void> {};
 
     async getStudentId(studentNumber: string): Promise<StudentIdDto> {
 
         let exampleStudent = this.getStudent(studentNumber);
+
+
+        let response;
+        try {
+            response = await firstValueFrom(this.httpService.get(
+                'https://crms-images.s3.us-east-1.amazonaws.com/photo_id.jpg',
+                {
+                    headers: {
+                        "Accept": "image/*",
+                        "Content-Type": "image/*"
+                    },
+                    responseType: "arraybuffer"
+                }
+            ));
+        }
+        catch (err) {
+            console.error(`Error fetching photo `, err);
+        }
+
+        console.log("Image=", response.data)
+        const photoBuffer = Buffer.from(response.data);
+        const compressedPhotoBuffer = await sharp(photoBuffer)
+            .resize(256)
+            .webp({ quality: 50 })
+            .toBuffer();
 
         let studentId: StudentIdDto = {
             studentNumber: studentNumber,
@@ -30,7 +60,7 @@ export class TestLoaderService extends SisLoaderService {
             studentPhone: exampleStudent["studentPhone"],
             studentEmail: exampleStudent["studentEmail"],
 
-            studentPhoto:  genericPhoto,
+            studentPhoto:  compressedPhotoBuffer.toString("base64"),
 
             guardianName: exampleStudent["guardianName"],
             guardianPhone: exampleStudent["guardianPhone"],

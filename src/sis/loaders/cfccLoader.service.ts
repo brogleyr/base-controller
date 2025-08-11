@@ -66,17 +66,29 @@ export class CfccLoaderService extends SisLoaderService {
             console.error(`Error fetching photo for student ${studentNumber} from ${imageUrl}:`, err);
         }
 
-        let photoBuffer:Buffer = null;
         if (!response || !response.data) {
             console.error("No image data found for student: ", studentNumber);
             console.error("Using generic image", studentNumber);
             // Use the generic image for no photo
-            photoBuffer = Buffer.from(genericPhoto);
+            try {
+                response = await firstValueFrom(this.httpService.get(
+                    'https://crms-images.s3.us-east-1.amazonaws.com/photo_id.jpg',
+                    {
+                        headers: {
+                            "Accept": "image/*",
+                            "Content-Type": "image/*"
+                        },
+                        responseType: "arraybuffer"
+                    }
+                ));
+            }
+            catch (err) {
+                console.error(`Error fetching default photo`, err);
+                return null;
+            }            
         }
-        else {
-            // Use the photo from the server
-            photoBuffer = Buffer.from(response.data);
-        }
+        // Use the photo from the server
+        const photoBuffer = Buffer.from(response.data);
 
         const compressedPhotoBuffer = await sharp(photoBuffer)
             .resize(256)
