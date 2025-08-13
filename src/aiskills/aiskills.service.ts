@@ -12,6 +12,45 @@ export class AiSkillsService {
     private readonly configService: ConfigService,
   ) {}
 
+  // Calls the jobs analysis endpoint through a proxy if necessary
+  async jobsAnalysis(connection: any): Promise<any> {
+    const endpointUrl = this.configService.get("JOBS_ANALYSIS_URL"); // https://gg91trcaui.execute-api.us-east-1.amazonaws.com/dev/jobs
+    const proxyUrl = this.configService.get("AUTHENTICATION_PROXY_URL") // https://localhost:8081
+
+    // TODO: Check for existence of env variables
+
+    const urlPath = endpointUrl.split("/").slice(3);
+    const hostName = endpointUrl.split("/").slice(0, 3).join("/");
+    const requestUrl = proxyUrl + "/" + urlPath.join("/");
+
+    console.log(urlPath);
+    console.log(hostName);
+    console.log(requestUrl);
+    try {
+      const response = await lastValueFrom(
+        this.httpService.get(
+          requestUrl,
+          {
+            headers: {
+              "Host": hostName
+            }
+          }
+        )
+      );
+
+      return response;
+    }
+    catch (e) {
+      console.error(e);
+      return null;
+    }
+    
+  }
+
+  skillAnalysis(connection: any) {
+    
+  }
+
   // Puts the transcript into format which is accepted by sendPromptToOpenAI
   private formatTranscript(transcript: any): string {
     let terms = transcript?.terms;
