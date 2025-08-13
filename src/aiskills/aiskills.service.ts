@@ -13,18 +13,16 @@ export class AiSkillsService {
   ) {}
 
   // Calls the jobs analysis endpoint through a proxy if necessary
-  async jobsAnalysis(connection: any): Promise<any> {
+  async jobsAnalysis(connection: any): Promise<string | null> {
     const endpointUrl = this.configService.get("JOBS_ANALYSIS_URL");
     const proxyUrl = this.configService.get("AUTHENTICATION_PROXY");
 
-    // TODO: Check for existence of env variables
+    // TODO: Check for existence of env variables and validate URLs
 
     const urlPath = endpointUrl.split("/").slice(3);
     const hostName = endpointUrl.split("/").slice(2, 3).join("/");
     const requestUrl = proxyUrl + "/" + urlPath.join("/");
 
-    console.log(hostName);
-    console.log(requestUrl);
     try {
       const response = await lastValueFrom(
         this.httpService.get(
@@ -37,13 +35,16 @@ export class AiSkillsService {
         )
       );
 
-      return response.data;
+      if (!response || !response.data || response.data.status !== 200 || !response.data.body) {
+        throw new Error("Failed to retrieve data from the jobs analysis endpoint.");
+      }
+
+      return response.data.body;
     }
     catch (e) {
       console.error(e);
       return null;
     }
-    
   }
 
   skillAnalysis(connection: any) {
