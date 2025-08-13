@@ -37,7 +37,7 @@ export class AiSkillsService {
         )
       );
 
-      return response;
+      return response.data;
     }
     catch (e) {
       console.error(e);
