@@ -14,16 +14,15 @@ export class AiSkillsService {
 
   // Calls the jobs analysis endpoint through a proxy if necessary
   async jobsAnalysis(connection: any): Promise<any> {
-    const endpointUrl = this.configService.get("JOBS_ANALYSIS_URL"); // https://gg91trcaui.execute-api.us-east-1.amazonaws.com/dev/jobs
-    const proxyUrl = this.configService.get("AUTHENTICATION_PROXY_URL") // https://localhost:8081
+    const endpointUrl = this.configService.get("JOBS_ANALYSIS_URL");
+    const proxyUrl = this.configService.get("AUTHENTICATION_PROXY");
 
     // TODO: Check for existence of env variables
 
     const urlPath = endpointUrl.split("/").slice(3);
-    const hostName = endpointUrl.split("/").slice(0, 3).join("/");
+    const hostName = endpointUrl.split("/").slice(2, 3).join("/");
     const requestUrl = proxyUrl + "/" + urlPath.join("/");
 
-    console.log(urlPath);
     console.log(hostName);
     console.log(requestUrl);
     try {
