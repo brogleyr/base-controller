@@ -6,13 +6,15 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { SisModule } from '../sis/sis.module';
 import { CourseModule } from '../courses/course.module';
+import { EnrollmentModule } from 'src/enrollment/enrollment.module';
 
 @Module({
   imports: [
     HttpModule,
     ConfigModule,
     SisModule,
-    CourseModule, 
+    CourseModule,
+    EnrollmentModule 
   ],
   controllers: [AiSkillsController],
   providers: [AiSkillsService],
