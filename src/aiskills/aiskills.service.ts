@@ -68,8 +68,8 @@ export class AiSkillsService {
   }
 
   // Puts the transcript into a structured object for AI analysis
-  private formatTranscript(transcript: any): { coursesList: [string, string][], source: string } {
-    let terms = transcript?.terms;
+  private formatTranscript(enrollment: Enrollment): { coursesList: [string, string][], source: string } {
+    let terms = enrollment?.terms;
 
     if (typeof terms === 'string') {
       try {
@@ -80,7 +80,7 @@ export class AiSkillsService {
     }
 
     if (!Array.isArray(terms)) {
-      return { coursesList: [], source: transcript?.schoolName || '' };
+      return { coursesList: [], source: enrollment?.school_name || '' };
     }
 
     const coursesList: [string, string][] = [];
@@ -98,7 +98,7 @@ export class AiSkillsService {
 
     return {
       coursesList,
-      source: transcript?.schoolName || ''
+      source: enrollment?.school_name || ''
     };
   }
 
