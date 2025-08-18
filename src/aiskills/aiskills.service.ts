@@ -13,7 +13,7 @@ export class AiSkillsService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly enrollmentService: EnrollmentService
-  ) {}
+  ) { }
 
   async jobsAnalysis(connection_id: any): Promise<string | null> {
     if (!connection_id) {
@@ -41,12 +41,12 @@ export class AiSkillsService {
       const response = await lastValueFrom(
         this.httpService.post(
           requestUrl,
+          analysisBody,
           {
             headers: {
               "Host": hostName,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify(analysisBody)
           }
         )
       );
@@ -64,7 +64,7 @@ export class AiSkillsService {
   }
 
   skillAnalysis(connection_id: any) {
-    
+
   }
 
   // Puts the transcript into a structured object for AI analysis
@@ -191,12 +191,12 @@ export class AiSkillsService {
     // The json_responce contains a list of "Abilities", "Tech and Tools", "Skills", "Knowledge" along with the 
     // courses where a given skill is derived from. It also includes a value "Level" which suggests how fimilar the
     // student is with some skill.
-    
+
     // The top_matches contains a list of 5 occupations the students skills mostly fall under. It contains the 
     // occupation title, "occupation", the percentage of match "percentage", the matched skills "matchedSkills", 
     // and a few other values.
     const json_response = await this.sendJsonSchemaRequest(json_prompt, jsonSchema);
-    
+
 
     try {
       const formattedResponse = this.formatJsonResponse(json_response);
@@ -341,7 +341,7 @@ export class AiSkillsService {
 
   formatJsonResponse(response: any): string {
     let formattedResponse = "";
-    
+
     for (const skill of [...response["abilities"], ...response["skills"], ...response["knowledge"]]) {
       formattedResponse += skill["name"] + "\n";
       for (const item of skill["afiliated_courses"]) {
