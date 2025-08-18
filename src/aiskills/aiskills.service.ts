@@ -15,7 +15,6 @@ export class AiSkillsService {
     private readonly enrollmentService: EnrollmentService
   ) {}
 
-  // Calls the jobs analysis endpoint through a proxy if necessary
   async jobsAnalysis(connection_id: any): Promise<string | null> {
     if (!connection_id) {
       throw new Error("Connection ID is required for jobs analysis.");
@@ -44,11 +43,10 @@ export class AiSkillsService {
           requestUrl,
           {
             headers: {
-              "Host": hostName
+              "Host": hostName,
+              "Content-Type": "application/json",
             },
-            body: {
-              
-            }
+            body: JSON.stringify(analysisBody)
           }
         )
       );
