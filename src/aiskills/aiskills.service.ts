@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { lastValueFrom } from 'rxjs';
+import { EnrollmentService } from 'src/enrollment/enrollment.service';
+import { Enrollment } from 'src/enrollment/entities/enrollment.entity';
 
 
 @Injectable()
@@ -10,10 +12,23 @@ export class AiSkillsService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly enrollmentService: EnrollmentService
   ) {}
 
   // Calls the jobs analysis endpoint through a proxy if necessary
-  async jobsAnalysis(connection: any): Promise<string | null> {
+  async jobsAnalysis(connection_id: any): Promise<string | null> {
+    if (!connection_id) {
+      throw new Error("Connection ID is required for jobs analysis.");
+    }
+    const connectionEnrollment: Enrollment = await this.enrollmentService.findOne(connection_id);
+    if (!connectionEnrollment) {
+      throw new Error("Enrollment or transcript not found for the given connection ID.");
+    }
+
+    const analysisBody = this.formatTranscript(connectionEnrollment);
+    console.log("Body to be sent to AI Skills:", analysisBody);
+
+
     const endpointUrl = this.configService.get("JOBS_ANALYSIS_URL");
     const proxyUrl = this.configService.get("AUTHENTICATION_PROXY");
 
@@ -25,11 +40,14 @@ export class AiSkillsService {
 
     try {
       const response = await lastValueFrom(
-        this.httpService.get(
+        this.httpService.post(
           requestUrl,
           {
             headers: {
               "Host": hostName
+            },
+            body: {
+              
             }
           }
         )
@@ -43,16 +61,16 @@ export class AiSkillsService {
     }
     catch (e) {
       console.error(e);
-      return null;
+      return "Credential analysis could not be completed, please try again later.";
     }
   }
 
-  skillAnalysis(connection: any) {
+  skillAnalysis(connection_id: any) {
     
   }
 
-  // Puts the transcript into format which is accepted by sendPromptToOpenAI
-  private formatTranscript(transcript: any): string {
+  // Puts the transcript into a structured object for AI analysis
+  private formatTranscript(transcript: any): { coursesList: [string, string][], source: string } {
     let terms = transcript?.terms;
 
     if (typeof terms === 'string') {
@@ -64,18 +82,26 @@ export class AiSkillsService {
     }
 
     if (!Array.isArray(terms)) {
-      return '\nNo terms or courses found.';
+      return { coursesList: [], source: transcript?.schoolName || '' };
     }
 
-    let transcriptString = "";
+    const coursesList: [string, string][] = [];
     for (const term of terms) {
-      transcriptString += `Grade ${term.termGradeLevel}:\n`;
-      for (const course of term.courses) {
-        transcriptString += `-  ${course.courseTitle}\n`;
+      if (Array.isArray(term.courses)) {
+        for (const course of term.courses) {
+          // Use courseTitle and courseCode, fallback to empty string if missing
+          coursesList.push([
+            course.courseTitle || '',
+            course.courseCode || ''
+          ]);
+        }
       }
     }
 
-    return transcriptString;
+    return {
+      coursesList,
+      source: transcript?.schoolName || ''
+    };
   }
 
   // Main code which executes the process
