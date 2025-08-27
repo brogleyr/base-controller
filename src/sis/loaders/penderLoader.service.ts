@@ -5,6 +5,7 @@ import { CourseDto, CreditRequirementDto, CteProgramDto, HighSchoolCourseDto, Hi
 import * as Pdf from 'pdf-parse';
 import { RedisService } from "../../services/redis.service";
 import { PdfLoaderService } from "../data-extract/pdfLoader.service";
+import * as fs from 'fs';
 
 @Injectable()
 export class PenderLoaderService extends SisLoaderService {
@@ -138,7 +139,31 @@ export class PenderLoaderService extends SisLoaderService {
         // Get a list of the terms in pdfText split apart into termBlocks
         const termBlocks: string[][] = this.splitByTerms(pdfText);
         // Parse the termBlocks into terms filled with courses
-        transcript.terms = termBlocks.map(this.parseTerm.bind(this));
+
+        // Do this but with a for loop so we can check if the same term is repeated
+        // transcript.terms = termBlocks.map(this.parseTerm.bind(this));
+        let roughTerms = [];
+        for (let termBlock of termBlocks) {
+            let parsedTerm = this.parseTerm(termBlock);
+            roughTerms.push(parsedTerm);
+        }
+        // Check for duplicate terms (same termYear and termSchoolName) and merge them
+        let condensedTerms = [];
+        for (let term of roughTerms) {
+            let lastTerm = condensedTerms[condensedTerms.length - 1];
+            if (lastTerm && lastTerm.termYear === term.termYear && lastTerm.termSchoolName === term.termSchoolName) {
+                // Merge courses
+                (lastTerm.courses as CourseDto[]).push(...term.courses);
+                lastTerm.termCredit = term.termCredit;
+                lastTerm.termGpa = term.termGpa;
+                lastTerm.termUnweightedGpa = term.termUnweightedGpa;
+            } else {
+                condensedTerms.push(term);
+            }
+        }
+
+        transcript.terms = condensedTerms;
+
         // Parse the in-progress courses
         const inProgressCourses: HighSchoolCourseDto[] = this.parseInProgressCourses(pdfText);
         // Add the in-progress courses to the last term
@@ -199,7 +224,7 @@ export class PenderLoaderService extends SisLoaderService {
             term.termYear = termBlock[0];
             term.termSchoolName = PdfLoaderService.stringAfterField(termBlock, "#")?.split(" ").slice(1).join(" ");
             term.termSchoolCode = PdfLoaderService.stringAfterField(termBlock, "#")?.split(" ")[0];
-            const creditLine: string[] = termBlock.filter(str => str.startsWith("Credit"))[0]?.match(/[\d\.]+/g) || [];
+            const creditLine: string[] = termBlock[termBlock.length - 1].match(/[\d\.]+/g) || [];
             if (creditLine.length === 3) {
                 term.termCredit = creditLine[0];
                 term.termGpa = creditLine[1];
@@ -260,7 +285,7 @@ export class PenderLoaderService extends SisLoaderService {
                 course.creditEarned = creditLine[2];
                 course.courseWeight = creditLine[1];
             }
-            else if (creditLine.length == 2) {
+            else if (creditLine.length === 2) {
                 course.grade = courseBlock[courseBlock.length - 2] ?? null;
                 course.creditEarned = creditLine[1];
                 course.courseWeight = creditLine[0];
