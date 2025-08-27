@@ -30,6 +30,13 @@ export class SisService {
     }
     studentId.expiration = this.configService.get('STUDENTID_EXPIRATION');
 
+    // Delete any null fields
+    for (const key in studentId) {
+      if (studentId[key] === null) {
+        delete studentId[key];
+      }
+    }
+
     try {
       validate(studentId);
     }
@@ -48,6 +55,13 @@ export class SisService {
     if (!transcript) {
       console.log(`Transcript was not found: ${studentNumber}`);
       return null;
+    }
+
+    // Delete any null fields
+    for (const key in transcript) {
+      if (transcript[key] === null) {
+        delete transcript[key];
+      }
     }
 
     try {
