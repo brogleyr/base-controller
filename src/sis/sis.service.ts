@@ -30,7 +30,7 @@ export class SisService {
     }
     studentId.expiration = this.configService.get('STUDENTID_EXPIRATION');
 
-    // Delete any null fields
+    // Credentials cannot contain null fields. Remove them before validation
     for (const key in studentId) {
       if (studentId[key] === null) {
         delete studentId[key];
@@ -57,7 +57,7 @@ export class SisService {
       return null;
     }
 
-    // Delete any null fields
+    // Credentials cannot contain null fields. Remove them before validation
     for (const key in transcript) {
       if (transcript[key] === null) {
         delete transcript[key];

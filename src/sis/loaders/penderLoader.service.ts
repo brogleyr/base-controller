@@ -2,20 +2,12 @@ import { Injectable } from "@nestjs/common";
 import { SisLoaderService } from "../loaders/sisLoader.service";
 import { StudentIdDto } from "../../dtos/studentId.dto";
 import { CourseDto, CreditRequirementDto, CteProgramDto, HighSchoolCourseDto, HighSchoolTermDto, HighSchoolTranscriptDto, TestDto, TranscriptDto } from "../../dtos/transcript.dto";
-import * as Zip from 'adm-zip';
 import * as Pdf from 'pdf-parse';
-import * as fs from 'fs';
-import * as path from "path";
 import { RedisService } from "../../services/redis.service";
 import { PdfLoaderService } from "../data-extract/pdfLoader.service";
 
 @Injectable()
 export class PenderLoaderService extends SisLoaderService {
-
-    studentIds = {};
-    transcripts = {};
-
-    private readonly uploadDir = './uploads' // The docker volume where uploads should go
 
     constructor(
         private readonly redisService: RedisService,

@@ -7,10 +7,10 @@ import { PdfLoaderService } from "../data-extract/pdfLoader.service";
 
 const env = {
     'STUDENTID_EXPIRATION': '06/21/21',
-    'PDF_ZIP': 'test/sis/pender-transcripts.zip'
 }
 
-describe('SisController', () => {
+
+describe('PenderLoaderService', () => {
 
     let penderLoaderService: PenderLoaderService;
 
@@ -18,13 +18,6 @@ describe('SisController', () => {
         const module = await Test.createTestingModule({
             providers: [
                 PenderLoaderService,
-                {
-                    provide: RedisService,
-                    useValue: {
-                        get: jest.fn(),
-                        set: jest.fn(),
-                    }
-                },
                 {
                     provide: ConfigService,
                     useValue: {
@@ -39,8 +32,7 @@ describe('SisController', () => {
                         get: jest.fn(),
                         set: jest.fn(),
                     }
-                },
-                PdfLoaderService
+                }
             ],
         }).compile()
 
