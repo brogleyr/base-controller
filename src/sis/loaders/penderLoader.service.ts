@@ -5,7 +5,6 @@ import { CourseDto, CreditRequirementDto, CteProgramDto, HighSchoolCourseDto, Hi
 import * as Pdf from 'pdf-parse';
 import { RedisService } from "../../services/redis.service";
 import { PdfLoaderService } from "../data-extract/pdfLoader.service";
-import * as fs from 'fs';
 
 @Injectable()
 export class PenderLoaderService extends SisLoaderService {
@@ -124,11 +123,11 @@ export class PenderLoaderService extends SisLoaderService {
         transcript.schoolAddress = pdfText[7];
         transcript.schoolFax = PdfLoaderService.stringAfterField(pdfText, "Fax");
         transcript.schoolCode = PdfLoaderService.stringAfterField(pdfText, "School Code");
-        transcript.gpa = PdfLoaderService.stringAfterField(pdfText, "Cumulative GPA").match(/[\d\.]+/)[0];
+        transcript.gpa = PdfLoaderService.stringAfterField(pdfText, "Cumulative GPA")?.match(/[\d\.]+/)[0];
         // transcript.earnedCredits = creditTotals[1];
 
         transcript.studentStateId = PdfLoaderService.stringAfterField(pdfText, "State ID");
-        transcript.gpaUnweighted = PdfLoaderService.stringAfterField(pdfText, "Cumulative GPA", 1).match(/[\d\.]+/)[0];
+        transcript.gpaUnweighted = PdfLoaderService.stringAfterField(pdfText, "Cumulative GPA", 1)?.match(/[\d\.]+/)[0];
         transcript.classRank = PdfLoaderService.stringAfterField(pdfText, "Class Rank");
         transcript.schoolDistrict = PdfLoaderService.stringAfterField(pdfText, "District Name");
         transcript.schoolAccreditation = PdfLoaderService.stringAfterField(pdfText, "Accreditation");
@@ -167,7 +166,7 @@ export class PenderLoaderService extends SisLoaderService {
         // Parse the in-progress courses
         const inProgressCourses: HighSchoolCourseDto[] = this.parseInProgressCourses(pdfText);
         // Add the in-progress courses to the last term
-        (transcript.terms[transcript.terms.length - 1]?.courses as HighSchoolCourseDto[]).push(...inProgressCourses);
+        (transcript.terms[transcript.terms.length - 1]?.courses as HighSchoolCourseDto[])?.push(...inProgressCourses);
         
         // Mark courses in the term as transfer or not based on the school code
         for (let term of transcript.terms) {
@@ -248,7 +247,7 @@ export class PenderLoaderService extends SisLoaderService {
                 isAfterCredit = false;
             }
 
-            if (str.startsWith("Credit")) { // The credit/gpa line is the first non-course element
+            if (str.startsWith("Credit:")) { // The credit/gpa line is the first non-course element
                 isAfterCredit = true;
             }
 
@@ -266,7 +265,7 @@ export class PenderLoaderService extends SisLoaderService {
 
             const indexUncRec: number = courseBlock.indexOf("UNC Minimum Requirement")
 
-            const firstTitleLine = courseBlock[0].match(/\s+(.*)/)[1]
+            const firstTitleLine = courseBlock[0].match(/\s+(.*)/)?.[1]
             let followingTitleLines = "";
             for (let i = 1; i < courseBlock.length; i++) {
                 // If the line is a UNC requirement or only numbers (grades), we're done
@@ -276,10 +275,22 @@ export class PenderLoaderService extends SisLoaderService {
                 followingTitleLines += " " + courseBlock[i];
                 
             } 
+            const assembledTitle = (firstTitleLine + followingTitleLines).replace(/\s+/g, ' ').trim();
+            const creditBlob = assembledTitle.match(/\s*(\d{2}|P)\d{1}\.\d{5}$/)?.[0]
+            let creditLine = [];
+            if (creditBlob) {
+                // Remove trailing grade info
+                creditLine = this.parseCreditLine(creditBlob);
+                // Remove the credit line from the title
+                assembledTitle.replace(/\s*\d{3}\.\d{5}$/, "").trim();
+            }
+            else {
+                creditLine = this.parseCreditLine(courseBlock[courseBlock.length - 1])
+            }
+
             course.courseTitle = firstTitleLine + followingTitleLines;
             course.flags = indexUncRec !== -1 ? ["UNC Minimum Requirement"] : [];
-
-            const creditLine = courseBlock[courseBlock.length - 1].split(/\s+/);
+            
             if (creditLine.length === 3) {
                 course.grade = creditLine[0];
                 course.creditEarned = creditLine[2];
@@ -297,6 +308,20 @@ export class PenderLoaderService extends SisLoaderService {
         }
 
         return course;
+    }
+
+    parseCreditLine(creditLine: string): string[] {
+        // Credit line can be broken down into grade, weight, credit earned
+        // '791.00001' = 79, 1.0000, 1
+        const weight = creditLine.match(/\d.\d{4}/);
+        // Extract weight, grade is the prior conent, credit is the trailing number
+        if (weight) {
+            const weightIndex = creditLine.indexOf(weight[0]);
+            const gradePart = creditLine.substring(0, weightIndex).trim();
+            const creditPart = creditLine.substring(weightIndex + weight[0].length).trim();
+            return [gradePart, weight[0], creditPart];
+        }
+        return [];
     }
 
     parseInProgressCourses(pdfText: string[]): HighSchoolCourseDto[] {

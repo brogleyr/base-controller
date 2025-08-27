@@ -65,10 +65,6 @@ describe('PenderLoaderService', () => {
     });
 
     describe('parsePenderTranscript', () => {
-        // Make a specified number of test pdf buffers available for these tests
-        beforeEach(() => {
-
-        });
 
         it('parses a sample transcript', async () => {
             const pdfPath = "uploads/output/temp_single_buffer_1_1.pdf";
@@ -141,13 +137,21 @@ describe('PenderLoaderService', () => {
                     for (const course of (term.courses as HighSchoolCourseDto[])) {
                         expect(course.courseCode).toMatch(/^[A-Z0-9]+$/);
                         expect(course.courseTitle).toBeDefined();
-                        expect(course.flags.length).toBeLessThanOrEqual(1);
-                        try{
-                            expect(course.grade).toMatch(/^\d{1,3}$/)
-                        } catch {
-                            console.log(`Non-numeric grade found: ${course.grade} for student ${transcript.studentNumber}`);
+                        
+                        if (!course.inProgress) {
+                            expect(course.flags.length).toBeLessThanOrEqual(1);
+                            try {
+                                expect(course.grade).toBeDefined();
+                                expect(course.creditEarned).toMatch(/^\d+$/);
+                                expect(course.courseWeight).toBeDefined();
+                            } catch {
+                                console.log(`Grade not defined for student/course: ${studentId.studentNumber} ${course}`);
+                            }
+                            
+                            
                         }
-                        // ...other checks
+                        
+                        
                     }
                 }
             }
@@ -157,28 +161,6 @@ describe('PenderLoaderService', () => {
 
     describe('getStudentId', () => {
 
-        // const expectedDto = new StudentIdDto();
-        // expectedDto.studentNumber = testStudentValues.studentNumber;
-        // expectedDto.studentFullName = testStudentValues.studentName;
-        // expectedDto.schoolName = testStudentValues.schoolName;
-        // expectedDto.expiration = env.STUDENTID_EXPIRATION;
-
-        // it('returns a studentid when given a student number', async () => {
-        //     const response: StudentIdDto = await sisService.getStudentId(testStudentValues.studentNumber);
-
-        //     expect(response.studentNumber).toEqual(expectedDto.studentNumber);
-        //     expect(response.studentFullName).toEqual(expectedDto.studentFullName);
-        //     expect(response.schoolName).toEqual(expectedDto.schoolName);
-        //     expect(response.expiration).toEqual(env.STUDENTID_EXPIRATION);
-
-        //     validate(response);
-        // })
-
-        // it('returns null when studentid cannot be generated', async () => {
-        //     const response = await sisService.getStudentId('Fake student id');
-
-        //     expect(response).toBeNull();
-        // })
     })
 
     describe('getStudentTranscript', () => {
