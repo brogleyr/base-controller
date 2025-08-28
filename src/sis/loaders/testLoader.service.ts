@@ -1,24 +1,56 @@
 import { Injectable } from "@nestjs/common";
 import { SisLoaderService } from "./sisLoader.service";
 import { TranscriptDto } from "../../dtos/transcript.dto";
-import { testPhotoBase64 } from "./images/testPhoto";
+import { testFemalePhotoBase64 } from "./images/testPhoto";
+import { genericPhoto } from "./images/testPhoto";
 import { exampleCollegeStudent, exampleHighSchoolStudent } from "./testLoaderData/exampleStudents";
 import { StudentIdDto } from "../../dtos/studentId.dto";
 import { validationStudents } from "./testLoaderData/validationStudents";
-
+import { demoStudents } from "./testLoaderData/demoStudents";
+import * as sharp from "sharp";
+import { firstValueFrom } from "rxjs";
+import { HttpService } from "@nestjs/axios";
 
 @Injectable()
 export class TestLoaderService extends SisLoaderService {
 
-    constructor() {
+    constructor(
+        private readonly httpService: HttpService
+    ) {
         super();
     };
+
 
     async load(): Promise<void> {};
 
     async getStudentId(studentNumber: string): Promise<StudentIdDto> {
 
         let exampleStudent = this.getStudent(studentNumber);
+
+
+        let response;
+        try {
+            response = await firstValueFrom(this.httpService.get(
+                'https://crms-images.s3.us-east-1.amazonaws.com/photo_id.jpg',
+                {
+                    headers: {
+                        "Accept": "image/*",
+                        "Content-Type": "image/*"
+                    },
+                    responseType: "arraybuffer"
+                }
+            ));
+        }
+        catch (err) {
+            console.error(`Error fetching photo `, err);
+        }
+
+        console.log("Image=", response.data)
+        const photoBuffer = Buffer.from(response.data);
+        const compressedPhotoBuffer = await sharp(photoBuffer)
+            .resize(256)
+            .webp({ quality: 50 })
+            .toBuffer();
 
         let studentId: StudentIdDto = {
             studentNumber: studentNumber,
@@ -29,7 +61,7 @@ export class TestLoaderService extends SisLoaderService {
             studentPhone: exampleStudent["studentPhone"],
             studentEmail: exampleStudent["studentEmail"],
 
-            studentPhoto:  testPhotoBase64,
+            studentPhoto:  compressedPhotoBuffer.toString("base64"),
 
             guardianName: exampleStudent["guardianName"],
             guardianPhone: exampleStudent["guardianPhone"],
@@ -67,11 +99,15 @@ export class TestLoaderService extends SisLoaderService {
         }
 
         const validationStudentNumbers = validationStudents.map(student => student.studentNumber);
+        const demoStudentNumbers = demoStudents.map(student => student.studentNumber);
 
         if (validationStudentNumbers.includes(studentNumber)) {
             return validationStudents.find(student => student.studentNumber === studentNumber);
         }
-        if (studentNumber.length >= 4) {
+        else if (demoStudentNumbers.includes(studentNumber)) {
+            return demoStudents.find(student => student.studentNumber === studentNumber);
+        }
+        else if (studentNumber.length >= 4) {
             return exampleCollegeStudent;
         }
         else {
