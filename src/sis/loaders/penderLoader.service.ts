@@ -103,7 +103,7 @@ export class PenderLoaderService extends SisLoaderService {
         studentId.studentBirthDate = PdfLoaderService.stringAfterField(pdfText, "Birthdate")?.match(/[\d\/]+/)[0];
         studentId.studentPhone = PdfLoaderService.stringAfterField(pdfText, "Tel", 1);
         studentId.gradeLevel = PdfLoaderService.stringAfterField(pdfText, "Grade");
-        studentId.graduationDate = pdfText[pdfText.indexOf("Graduation Year:") + 1];
+        studentId.graduationDate = PdfLoaderService.stringAfterField(pdfText, "Graduation Year:");
         studentId.schoolName = pdfText[1]?.substring(0, pdfText[1].indexOf(" Official Transcript"));
         studentId.schoolPhone = PdfLoaderService.stringAfterField(pdfText, "Tel",);
 
@@ -165,7 +165,7 @@ export class PenderLoaderService extends SisLoaderService {
 
         // Parse the in-progress courses
         const inProgressCourses: HighSchoolCourseDto[] = this.parseInProgressCourses(pdfText);
-        // Add the in-progress courses to the last term
+
         (transcript.terms[transcript.terms.length - 1]?.courses as HighSchoolCourseDto[])?.push(...inProgressCourses);
         
         // Mark courses in the term as transfer or not based on the school code

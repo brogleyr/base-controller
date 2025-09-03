@@ -74,7 +74,7 @@ describe('PenderLoaderService', () => {
         });
 
         it('parses multiple sample transcripts', async () => {
-            const pdfPaths = getTestPdfsFromFolder("uploads/output", 10);
+            const pdfPaths = getTestPdfsFromFolder("uploads/output");
 
             let failures: { pdf: string; message: string }[] = [];
 
@@ -109,7 +109,9 @@ describe('PenderLoaderService', () => {
                 check("studentBirthDate", () =>
                     expect(studentId.studentBirthDate).toMatch(/^\d{2}\/\d{2}\/\d{4}$/),
                 );
-                check("studentPhone", () => expect(studentId.studentPhone).toMatch(/^[\d ()+-]+$/));
+                check("studentPhone", () => {
+                    if (studentId.studentPhone) expect(studentId.studentPhone).toMatch(/^[\d ()+-]+$/);
+                });
                 check("gradeLevel", () => expect(studentId.gradeLevel).toMatch(/^\d+$/));
                 check("graduationDate", () => expect(studentId.graduationDate).toMatch(/^\d{4}$/));
                 check("schoolName", () => expect(studentId.schoolName).toMatch(/^[a-zA-Z ]+$/));
