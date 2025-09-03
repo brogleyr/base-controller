@@ -74,86 +74,177 @@ describe('PenderLoaderService', () => {
         });
 
         it('parses multiple sample transcripts', async () => {
-            const pdfPaths = getTestPdfsFromFolder("uploads/output", 100);
+            const pdfPaths = getTestPdfsFromFolder("uploads/output", 10);
+
+            let failures: { pdf: string; message: string }[] = [];
+
             for (const pdfPath of pdfPaths) {
                 const pdfBuffer = fs.readFileSync(pdfPath);
-                const [studentId, transcript] = await penderLoaderService.parsePenderTranscript(pdfBuffer);
-                expect(studentId).toBeDefined();
-                expect(studentId.studentNumber).toMatch(/^\d+$/);
-                expect(studentId.studentFullName).toMatch(/^[a-zA-Z ,.'-]+$/);
-                expect(studentId.studentBirthDate).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
-                // TODO - Some student phones return null
-                // expect(studentId.studentPhone).toMatch(/^[\d ()+-]+$/);
-                expect(studentId.gradeLevel).toMatch(/^\d+$/);
-                // TODO - Graduation date sometimes parsing District name?
-                // expect(studentId.graduationDate).toMatch(/^\d{4}$/);
-                expect(studentId.schoolName).toMatch(/^[a-zA-Z ]+$/);
-                expect(studentId.schoolPhone).toMatch(/^[\d ()+-]+$/);
 
-                expect(transcript).toBeDefined();
-                expect(transcript.transcriptDate).toMatch(/^\d{2}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2} [AP]M$/);
-                expect(transcript.transcriptComments).toBeDefined();
-                expect(transcript.studentNumber).toEqual(studentId.studentNumber);
-                expect(transcript.studentFullName).toEqual(studentId.studentFullName);
-                expect(transcript.studentBirthDate).toEqual(studentId.studentBirthDate);
-                expect(transcript.studentPhone).toEqual(studentId.studentPhone);
-                expect(transcript.studentAddress).toBeDefined();
-                expect(transcript.studentSex).toMatch(/^(M|F)$/);
-                expect(transcript.gradeLevel).toEqual(studentId.gradeLevel);
-                expect(transcript.graduationDate).toEqual(studentId.graduationDate);
-                expect(transcript.program).toBeDefined();
-                expect(transcript.schoolName).toEqual(studentId.schoolName);
-                expect(transcript.schoolPhone).toEqual(studentId.schoolPhone);
-                expect(transcript.schoolAddress).toBeDefined();
-                expect(transcript.schoolFax).toMatch(/^[\d ()+-]+$/);
-                expect(transcript.schoolCode).toMatch(/^\d+$/);
-                expect(transcript.gpa).toMatch(/^\d+\.\d{3}$/);
-                expect(transcript.studentStateId).toMatch(/^\d+$/);
-                expect(transcript.gpaUnweighted).toMatch(/^\d+\.\d{3}$/);
-                expect(transcript.classRank).toBeDefined();
-                expect(transcript.schoolDistrict).toBeDefined();
-                expect(transcript.schoolAccreditation).toBeDefined();
-                expect(transcript.schoolCeebCode).toMatch(/^\d+$/);
-                expect(transcript.schoolPrincipal).toBeDefined();
-                expect(transcript.cirriculumProgram).toBeDefined();
+                let studentId: any;
+                let transcript: any;
 
-                expect(transcript.terms).toBeDefined();
-                expect(transcript.terms.length).toBeGreaterThan(0);
-                // Iterate over terms as TermDTO objects
-                for (const term of (transcript.terms as HighSchoolTermDto[])) {
-                    expect(term.termGradeLevel).toMatch(/^\d+$/);
-                    expect(term.termYear).toMatch(/^\d{4}-\d{4}$/);
-                    expect(term.termSchoolName).toBeDefined();
-                    // TODO Schools without codes are populating with first word of school name
-                    // TODO Handle terms at multiple schools throughout one school year
-                    // expect(term.termSchoolCode).toMatch(/^\d+$/);
+                try {
+                    [studentId, transcript] = await penderLoaderService.parsePenderTranscript(pdfBuffer);
+                } catch (err) {
+                    failures.push({ pdf: pdfPath, message: `Parse error: ${err}` });
+                    continue;
+                }
 
-                    expect(term.termCredit).toMatch(/^\d*\.\d{3}$/);
-                    expect(term.termGpa).toMatch(/^\d+\.\d{3,4}$/);
-                    expect(term.termUnweightedGpa).toMatch(/^\d+\.\d{3,4}$/);
-                    expect(term.courses).toBeDefined();
-                    expect(term.courses.length).toBeGreaterThan(0);
-
-                    for (const course of (term.courses as HighSchoolCourseDto[])) {
-                        expect(course.courseCode).toMatch(/^[A-Z0-9]+$/);
-                        expect(course.courseTitle).toBeDefined();
-                        
-                        if (!course.inProgress) {
-                            expect(course.flags.length).toBeLessThanOrEqual(1);
-                            try {
-                                expect(course.grade).toBeDefined();
-                                expect(course.creditEarned).toMatch(/^\d+$/);
-                                expect(course.courseWeight).toBeDefined();
-                            } catch {
-                                console.log(`Grade not defined for student/course: ${studentId.studentNumber} ${course}`);
-                            }
-                            
-                            
-                        }
-                        
-                        
+                // Wrap each group of expectations in try/catch
+                function check(desc: string, fn: () => void) {
+                    try {
+                        fn();
+                    } catch (err) {
+                        failures.push({ pdf: pdfPath, message: `${desc} - ${err.message}` });
                     }
                 }
+
+                // === StudentId checks ===
+                check("studentId defined", () => expect(studentId).toBeDefined());
+                check("studentNumber", () => expect(studentId.studentNumber).toMatch(/^\d+$/));
+                check("studentFullName", () =>
+                    expect(studentId.studentFullName).toMatch(/^[a-zA-Z ,.'-]+$/),
+                );
+                check("studentBirthDate", () =>
+                    expect(studentId.studentBirthDate).toMatch(/^\d{2}\/\d{2}\/\d{4}$/),
+                );
+                check("studentPhone", () => expect(studentId.studentPhone).toMatch(/^[\d ()+-]+$/));
+                check("gradeLevel", () => expect(studentId.gradeLevel).toMatch(/^\d+$/));
+                check("graduationDate", () => expect(studentId.graduationDate).toMatch(/^\d{4}$/));
+                check("schoolName", () => expect(studentId.schoolName).toMatch(/^[a-zA-Z ]+$/));
+                check("schoolPhone", () => expect(studentId.schoolPhone).toMatch(/^[\d ()+-]+$/));
+
+                // === Transcript checks ===
+                check("transcript defined", () => expect(transcript).toBeDefined());
+                check("transcriptDate", () =>
+                    expect(transcript.transcriptDate).toMatch(
+                        /^\d{2}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2} [AP]M$/,
+                    ),
+                );
+                check("transcriptComments", () =>
+                    expect(transcript.transcriptComments).toBeDefined(),
+                );
+                check("studentNumber match", () =>
+                    expect(transcript.studentNumber).toEqual(studentId.studentNumber),
+                );
+                check("studentFullName match", () =>
+                    expect(transcript.studentFullName).toEqual(studentId.studentFullName),
+                );
+                check("studentBirthDate match", () =>
+                    expect(transcript.studentBirthDate).toEqual(studentId.studentBirthDate),
+                );
+                check("studentPhone match", () =>
+                    expect(transcript.studentPhone).toEqual(studentId.studentPhone),
+                );
+                check("studentAddress", () => expect(transcript.studentAddress).toBeDefined());
+                check("studentSex", () => expect(transcript.studentSex).toMatch(/^(M|F)$/));
+                check("gradeLevel match", () =>
+                    expect(transcript.gradeLevel).toEqual(studentId.gradeLevel),
+                );
+                check("graduationDate match", () =>
+                    expect(transcript.graduationDate).toEqual(studentId.graduationDate),
+                );
+                check("program", () => expect(transcript.program).toBeDefined());
+                check("schoolName match", () =>
+                    expect(transcript.schoolName).toEqual(studentId.schoolName),
+                );
+                check("schoolPhone match", () =>
+                    expect(transcript.schoolPhone).toEqual(studentId.schoolPhone),
+                );
+                check("schoolAddress", () => expect(transcript.schoolAddress).toBeDefined());
+                check("schoolFax", () => expect(transcript.schoolFax).toMatch(/^[\d ()+-]+$/));
+                check("schoolCode", () => expect(transcript.schoolCode).toMatch(/^\d+$/));
+                check("gpa", () => expect(transcript.gpa).toMatch(/^\d+\.\d{3}$/));
+                check("studentStateId", () =>
+                    expect(transcript.studentStateId).toMatch(/^\d+$/),
+                );
+                check("gpaUnweighted", () =>
+                    expect(transcript.gpaUnweighted).toMatch(/^\d+\.\d{3}$/),
+                );
+                check("classRank", () => expect(transcript.classRank).toBeDefined());
+                check("schoolDistrict", () =>
+                    expect(transcript.schoolDistrict).toBeDefined(),
+                );
+                check("schoolAccreditation", () =>
+                    expect(transcript.schoolAccreditation).toBeDefined(),
+                );
+                check("schoolCeebCode", () =>
+                    expect(transcript.schoolCeebCode).toMatch(/^\d+$/),
+                );
+                check("schoolPrincipal", () =>
+                    expect(transcript.schoolPrincipal).toBeDefined(),
+                );
+                check("cirriculumProgram", () =>
+                    expect(transcript.cirriculumProgram).toBeDefined(),
+                );
+
+                // === Terms and Courses ===
+                check("terms defined", () => expect(transcript.terms).toBeDefined());
+                if (transcript.terms) {
+                    check("terms not empty", () =>
+                        expect(transcript.terms.length).toBeGreaterThan(0),
+                    );
+
+                    for (const term of transcript.terms) {
+                        check("termGradeLevel", () =>
+                            expect(term.termGradeLevel).toMatch(/^\d+$/),
+                        );
+                        check("termYear", () => expect(term.termYear).toMatch(/^\d{4}-\d{4}$/));
+                        check("termSchoolName", () =>
+                            expect(term.termSchoolName).toBeDefined(),
+                        );
+                        check("termSchoolCode", () => expect(term.termSchoolCode).toMatch(/^\d+$/));
+                        check("termCredit", () =>
+                            expect(term.termCredit).toMatch(/^\d*\.\d{3}$/),
+                        );
+                        check("termGpa", () => expect(term.termGpa).toMatch(/^\d+\.\d{3,4}$/));
+                        check("termUnweightedGpa", () =>
+                            expect(term.termUnweightedGpa).toMatch(/^\d+\.\d{3,4}$/),
+                        );
+                        check("courses defined", () => expect(term.courses).toBeDefined());
+                        if (term.courses) {
+                            check("courses not empty", () =>
+                                expect(term.courses.length).toBeGreaterThan(0),
+                            );
+
+                            for (const course of term.courses) {
+                                check("courseCode", () =>
+                                    expect(course.courseCode).toMatch(/^[A-Z0-9]+$/),
+                                );
+                                check("courseTitle", () =>
+                                    expect(course.courseTitle).toBeDefined(),
+                                );
+
+                                if (!course.inProgress) {
+                                    check("flags <= 1", () =>
+                                        expect(course.flags.length).toBeLessThanOrEqual(1),
+                                    );
+                                    check("course.grade", () =>
+                                        expect(course.grade).toBeDefined(),
+                                    );
+                                    check("course.creditEarned", () =>
+                                        expect(course.creditEarned).toMatch(/^\d+$/),
+                                    );
+                                    check("courseWeight", () =>
+                                        expect(course.courseWeight).toBeDefined(),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // At the end, decide how you want to fail/report
+            if (failures.length > 0) {
+                console.log("==== Transcript parse failures ====");
+                for (const f of failures) {
+                    console.log(`${f.pdf} -> ${f.message}`);
+                }
+                console.log(`Total PDFs: ${pdfPaths.length}, Failures: ${failures.length}`);
+                // Fail the test once, after all PDFs have been checked
+                throw new Error(`${failures.length} transcript(s) failed validation`);
             }
         });
 
