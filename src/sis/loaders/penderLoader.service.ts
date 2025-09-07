@@ -146,10 +146,17 @@ export class PenderLoaderService extends SisLoaderService {
             let parsedTerm = this.parseTerm(termBlock);
             roughTerms.push(parsedTerm);
         }
-        // Check for duplicate terms (same termYear and termSchoolName) and merge them
         let condensedTerms = [];
         for (let term of roughTerms) {
             let lastTerm = condensedTerms[condensedTerms.length - 1];
+
+            // If there are two schools in the same year, copy over the year and grade level if missing
+            if (!term.termYear) {
+                term.termYear = lastTerm.termYear;
+                term.gradeLevel = lastTerm.gradeLevel;
+            }
+
+            // Check for duplicate terms (same termYear and termSchoolName) and merge them
             if (lastTerm && lastTerm.termYear === term.termYear && lastTerm.termSchoolName === term.termSchoolName) {
                 // Merge courses
                 (lastTerm.courses as CourseDto[]).push(...term.courses);
@@ -164,13 +171,14 @@ export class PenderLoaderService extends SisLoaderService {
         transcript.terms = condensedTerms;
 
         // Parse the in-progress courses
-        const inProgressCourses: HighSchoolCourseDto[] = this.parseInProgressCourses(pdfText);
+        const inProgressTerm = this.parseInProgressTerm(pdfText, transcript);
+        if (inProgressTerm) {
+            transcript.terms.push(inProgressTerm);
+        }
 
-        (transcript.terms[transcript.terms.length - 1]?.courses as HighSchoolCourseDto[])?.push(...inProgressCourses);
-        
         // Mark courses in the term as transfer or not based on the school code
         for (let term of transcript.terms) {
-            if (term.termSchoolCode === transcript.schoolCode) {
+            if (term.termSchoolCode === transcript.schoolCode || term.termSchoolName === transcript.schoolName) {
                 for (let course of term.courses) {
                     (course as CourseDto).transfer = false;
                 }
@@ -180,7 +188,6 @@ export class PenderLoaderService extends SisLoaderService {
                 }
             }
         }
-
         transcript.tests = this.parseTests(pdfText);
         transcript.creditSummary = this.parseCreditSummary(pdfText);
         // transcript.ctePrograms = new CteProgramDto();
@@ -196,7 +203,7 @@ export class PenderLoaderService extends SisLoaderService {
         // Iterate through text looking for year (ie 2021-2022)
         // Add text to current term
         for (const str of pdfText) {
-            if (/\d{4}-\d{4}/.test(str)) {
+            if (/\d{4}-\d{4}/.test(str) || (isAfterCredit && /^#/.test(str))) {
                 termIndex += 1;
                 termBlocks.push([]);
                 isAfterCredit = false;
@@ -220,9 +227,18 @@ export class PenderLoaderService extends SisLoaderService {
             term.courses = courseBlocks.map(this.parseCourse.bind(this));
 
             term.termGradeLevel = PdfLoaderService.stringAfterField(termBlock, "Grade");
-            term.termYear = termBlock[0];
-            term.termSchoolName = PdfLoaderService.stringAfterField(termBlock, "#")?.split(" ").slice(1).join(" ");
-            term.termSchoolCode = PdfLoaderService.stringAfterField(termBlock, "#")?.split(" ")[0];
+            term.termYear = termBlock.find(str => /\d{4}-\d{4}/.test(str))?.match(/\d{4}-\d{4}/)[0];
+
+            // School name and school code are both included after a '#' character. The code is first, then the name
+            // The code is typically all capital letters and numbers, and will sometimes be absent
+            const firstAfterHash = PdfLoaderService.stringAfterField(termBlock, "#")?.split(" ")[0];
+            if (firstAfterHash && /^[A-Z\d]+$/.test(firstAfterHash) && /\d+/.test(firstAfterHash)) {
+                term.termSchoolCode = firstAfterHash;
+                term.termSchoolName = PdfLoaderService.stringAfterField(termBlock, "#")?.split(" ").slice(1).join(" ");
+            } else {
+                term.termSchoolName = PdfLoaderService.stringAfterField(termBlock, "#");
+            }
+            
             const creditLine: string[] = termBlock[termBlock.length - 1].match(/[\d\.]+/g) || [];
             if (creditLine.length === 3) {
                 term.termCredit = creditLine[0];
@@ -241,7 +257,7 @@ export class PenderLoaderService extends SisLoaderService {
         let currentBlock = -1;
         let isAfterCredit = false;
         for (const str of termBlock) {
-            if (str.match(/\d+[A-Z]+\w+/)) { // The course code begins the string "1234X0 "
+            if (str.match(/^[A-Z\d]{5}[XY]{1}[A-Z\d]{1}/)) { // The course code begins the string "1234X0 "
                 currentBlock++;
                 courseBlocks.push([]);
                 isAfterCredit = false;
@@ -263,9 +279,9 @@ export class PenderLoaderService extends SisLoaderService {
         try {
             course.courseCode = courseBlock[0].split(/\s+/)[0];
 
-            const indexUncRec: number = courseBlock.indexOf("UNC Minimum Requirement")
+            const indexUncRec: number = courseBlock.indexOf("UNC Minimum Requirement");
 
-            const firstTitleLine = courseBlock[0].match(/\s+(.*)/)?.[1]
+            const firstTitleLine = courseBlock[0].match(/\s+(.*)/)?.[1] || "";
             let followingTitleLines = "";
             for (let i = 1; i < courseBlock.length; i++) {
                 // If the line is a UNC requirement or only numbers (grades), we're done
@@ -273,34 +289,35 @@ export class PenderLoaderService extends SisLoaderService {
                     break;
                 }
                 followingTitleLines += " " + courseBlock[i];
-                
-            } 
-            const assembledTitle = (firstTitleLine + followingTitleLines).replace(/\s+/g, ' ').trim();
-            const creditBlob = assembledTitle.match(/\s*(\d{2}|P)\d{1}\.\d{5}$/)?.[0]
-            let creditLine = [];
-            if (creditBlob) {
-                // Remove trailing grade info
-                creditLine = this.parseCreditLine(creditBlob);
-                // Remove the credit line from the title
-                assembledTitle.replace(/\s*\d{3}\.\d{5}$/, "").trim();
             }
-            else {
-                creditLine = this.parseCreditLine(courseBlock[courseBlock.length - 1])
+            let assembledTitle = (firstTitleLine + followingTitleLines).replace(/\s+/g, ' ').trim();
+
+            // Look for credit info at the end of the course block
+            let lastLine = courseBlock[courseBlock.length - 1];
+            let creditBlob;
+            const fullCreditRegex = /(\d{1,3}|P|F|\*|PC19|CDM|WF|FF|WP|INC|ADU|WC)(\d\.\d{4})(\d|\d\.?\d*)$/
+            const fullCreditMatch = lastLine.match(fullCreditRegex);
+            const letterCreditMatch = lastLine.match(/(A|B|C|D|F|P)(\d)$/);
+
+            if (fullCreditMatch) {
+                creditBlob = fullCreditMatch[0];
+                course.grade = fullCreditMatch[1];
+                course.courseWeight = fullCreditMatch[2];
+                course.creditEarned = fullCreditMatch[3];
+            } else if (letterCreditMatch) {
+                creditBlob = letterCreditMatch[0];
+                course.grade = letterCreditMatch[1];
+                course.creditEarned = letterCreditMatch[2];
+            }
+            
+            if (creditBlob) {
+                // Remove the credit line from the title
+                assembledTitle = assembledTitle.replace(creditBlob, "").trim();
             }
 
-            course.courseTitle = firstTitleLine + followingTitleLines;
+            course.courseTitle = assembledTitle;
             course.flags = indexUncRec !== -1 ? ["UNC Minimum Requirement"] : [];
-            
-            if (creditLine.length === 3) {
-                course.grade = creditLine[0];
-                course.creditEarned = creditLine[2];
-                course.courseWeight = creditLine[1];
-            }
-            else if (creditLine.length === 2) {
-                course.grade = courseBlock[courseBlock.length - 2] ?? null;
-                course.creditEarned = creditLine[1];
-                course.courseWeight = creditLine[0];
-            }
+
             course.inProgress = false;
         }
         catch (err) {
@@ -310,18 +327,14 @@ export class PenderLoaderService extends SisLoaderService {
         return course;
     }
 
-    parseCreditLine(creditLine: string): string[] {
-        // Credit line can be broken down into grade, weight, credit earned
-        // '791.00001' = 79, 1.0000, 1
-        const weight = creditLine.match(/\d.\d{4}/);
-        // Extract weight, grade is the prior conent, credit is the trailing number
-        if (weight) {
-            const weightIndex = creditLine.indexOf(weight[0]);
-            const gradePart = creditLine.substring(0, weightIndex).trim();
-            const creditPart = creditLine.substring(weightIndex + weight[0].length).trim();
-            return [gradePart, weight[0], creditPart];
-        }
-        return [];
+    parseInProgressTerm(pdfText: string[], transcript: TranscriptDto): HighSchoolTermDto {
+        let term = new HighSchoolTermDto();
+        term.termYear = "In-Progress";
+        term.termGradeLevel = transcript.gradeLevel;
+        term.termSchoolCode = transcript.schoolCode;
+        term.termSchoolName = transcript.schoolName;
+        term.courses = this.parseInProgressCourses(pdfText);
+        return term;
     }
 
     parseInProgressCourses(pdfText: string[]): HighSchoolCourseDto[] {
@@ -341,7 +354,7 @@ export class PenderLoaderService extends SisLoaderService {
 
             let course = new HighSchoolCourseDto();
             course.courseCode = str.split(/\s+/)[0] ?? null;
-            course.courseWeight = str.match(/[\d\.]+$/)[0] ?? null;
+            course.courseWeight = str.match(/\d{1}\.\d{3,4}$/)[0] ?? null;
             course.courseTitle = str.replace(/\s*[\d\.]+$/, "").split(/\s+/).slice(1).join(" ") ?? null;
             course.inProgress = true;
             course.transfer = false;

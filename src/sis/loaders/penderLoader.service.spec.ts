@@ -9,10 +9,14 @@ import { TermDto, CourseDto, HighSchoolTermDto, HighSchoolCourseDto } from "src/
 
 const env = {}
 
-function getTestPdfsFromFolder(folder: string, limit?: number): string[] {
+function getTestPdfsFromFolder(folder: string, limit?: number, document?: number, index?: number): string[] {
     const allFiles = fs.readdirSync(folder)
         .filter(f => f.toLowerCase().endsWith(".pdf"))
         .map(f => path.join(folder, f));
+
+    if (document && index) {
+        return allFiles.filter(f => f.includes(`temp_single_buffer_${document}_${index}.pdf`));
+    }
 
     if (limit && limit > 0) {
         return allFiles.slice(0, limit);
@@ -76,7 +80,7 @@ describe('PenderLoaderService', () => {
         it('parses multiple sample transcripts', async () => {
             const pdfPaths = getTestPdfsFromFolder("uploads/output");
 
-            let failures: { pdf: string; message: string }[] = [];
+            let failures: { pdf: string, errorTitle: string, message: string }[] = [];
 
             for (const pdfPath of pdfPaths) {
                 const pdfBuffer = fs.readFileSync(pdfPath);
@@ -87,7 +91,7 @@ describe('PenderLoaderService', () => {
                 try {
                     [studentId, transcript] = await penderLoaderService.parsePenderTranscript(pdfBuffer);
                 } catch (err) {
-                    failures.push({ pdf: pdfPath, message: `Parse error: ${err}` });
+                    failures.push({ pdf: pdfPath, errorTitle: "ParseError", message: `Parse error: ${err}` });
                     continue;
                 }
 
@@ -96,7 +100,7 @@ describe('PenderLoaderService', () => {
                     try {
                         fn();
                     } catch (err) {
-                        failures.push({ pdf: pdfPath, message: `${desc} - ${err.message}` });
+                        failures.push({ pdf: pdfPath, errorTitle: desc, message: `${desc} - ${err.message}` });
                     }
                 }
 
@@ -192,29 +196,38 @@ describe('PenderLoaderService', () => {
                         check("termGradeLevel", () =>
                             expect(term.termGradeLevel).toMatch(/^\d+$/),
                         );
-                        check("termYear", () => expect(term.termYear).toMatch(/^\d{4}-\d{4}$/));
+                        // Match XXXX-XXXX or "In-Progress"
+                        check("termYear", () => expect(term.termYear).toMatch(/^(\d{4}-\d{4}|In-Progress)$/));
                         check("termSchoolName", () =>
                             expect(term.termSchoolName).toBeDefined(),
                         );
-                        check("termSchoolCode", () => expect(term.termSchoolCode).toMatch(/^\d+$/));
-                        check("termCredit", () =>
-                            expect(term.termCredit).toMatch(/^\d*\.\d{3}$/),
-                        );
-                        check("termGpa", () => expect(term.termGpa).toMatch(/^\d+\.\d{3,4}$/));
-                        check("termUnweightedGpa", () =>
-                            expect(term.termUnweightedGpa).toMatch(/^\d+\.\d{3,4}$/),
-                        );
-                        check("courses defined", () => expect(term.courses).toBeDefined());
-                        if (term.courses) {
-                            check("courses not empty", () =>
-                                expect(term.courses.length).toBeGreaterThan(0),
+                        // School code is allowed to be undefined if not available
+                        check("termSchoolCode", () => {
+                            if (term.termSchoolCode) expect(term.termSchoolCode).toMatch(/^[A-Z\d]+$/);
+                        });
+                        if (term.termYear !== "In-Progress") {
+                            check("termCredit", () =>
+                                expect(term.termCredit).toMatch(/^\d*\.\d{3}$/),
                             );
+                            check("termGpa", () => expect(term.termGpa).toMatch(/^\d+\.\d{3,4}$/));
+                            check("termUnweightedGpa", () =>
+                                expect(term.termUnweightedGpa).toMatch(/^\d+\.\d{3,4}$/),
+                            );
+                        }
+                        check("courses defined", () => expect(term.courses).toBeDefined());
+                        
+                        check("courses not empty", () =>
+                            expect(term.courses.length).toBeGreaterThan(0),
+                        );
+
+                        if (term.courses) {
+                            let totalCredit = 0;
 
                             for (const course of term.courses) {
                                 check("courseCode", () =>
                                     expect(course.courseCode).toMatch(/^[A-Z0-9]+$/),
                                 );
-                                check("courseTitle", () =>
+                                check("courseTitle defined", () =>
                                     expect(course.courseTitle).toBeDefined(),
                                 );
 
@@ -225,14 +238,31 @@ describe('PenderLoaderService', () => {
                                     check("course.grade", () =>
                                         expect(course.grade).toBeDefined(),
                                     );
-                                    check("course.creditEarned", () =>
-                                        expect(course.creditEarned).toMatch(/^\d+$/),
+                                    check("course.creditEarned", () => {
+                                        expect(course.creditEarned).toMatch(/^\d+\.?\d*$/);
+                                        totalCredit += parseFloat(course.creditEarned);
+                                    }
                                     );
-                                    check("courseWeight", () =>
-                                        expect(course.courseWeight).toBeDefined(),
-                                    );
+                                    check("courseWeight", () => {
+                                        if (course.courseWeight) expect(course.courseWeight).toMatch(/^\d{1}\.\d{3,4}/);
+                                    });
+
+                                    check("courseTitle trailing grade", () => {
+                                        expect(course.courseTitle).not.toMatch(/\d+\.\d+$/)
+                                    })
                                 }
                             }
+
+                            // Check that total credit for term matches sum of course credits
+                            check("course credit sum match", () => {
+                                if (term.termCredit) {
+                                    if (term.termCredit === ".000") {
+                                        expect(totalCredit).toEqual(0);
+                                    } else {
+                                        expect(totalCredit.toFixed(3)).toEqual(term.termCredit);
+                                    }
+                                }
+                            });
                         }
                     }
                 }
@@ -245,6 +275,14 @@ describe('PenderLoaderService', () => {
                     console.log(`${f.pdf} -> ${f.message}`);
                 }
                 console.log(`Total PDFs: ${pdfPaths.length}, Failures: ${failures.length}`);
+
+                // Write failures to a file in csv format
+                const failureLog = failures.map(f => `${f.pdf},${f.errorTitle}`).join("\n");
+                
+
+                fs.writeFileSync("uploads/transcript_parse_failures.csv", "pdf,errorTitle,message\n" + failureLog);
+
+
                 // Fail the test once, after all PDFs have been checked
                 throw new Error(`${failures.length} transcript(s) failed validation`);
             }
