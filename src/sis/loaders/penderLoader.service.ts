@@ -86,18 +86,6 @@ export class PenderLoaderService extends SisLoaderService {
             .map(str => String(str).trim())
             .filter(str => str);
 
-        // transcript.tests =
-        // transcript.creditSummary = 
-        // transcript.ctePrograms = 
-
-        const creditTotals: string[] = pdfText.filter(str => str.startsWith("Total"))[0]?.match(/\d+\.\d{3}/g) || [];
-        if (creditTotals.length === 4) {
-            
-            // transcript.attemptedCredits = parseFloat(creditTotals[0]);
-            // transcript.requiredCredits = parseFloat(creditTotals[2]);
-            // transcript.remainingCredits = parseFloat(creditTotals[3]);
-        }
-
         studentId.studentNumber = PdfLoaderService.stringAfterField(pdfText, "Student Number");
         studentId.studentFullName = pdfText[8] ?? null;
         studentId.studentBirthDate = PdfLoaderService.stringAfterField(pdfText, "Birthdate")?.match(/[\d\/]+/)[0];
@@ -141,7 +129,7 @@ export class PenderLoaderService extends SisLoaderService {
 
         // Do this but with a for loop so we can check if the same term is repeated
         // transcript.terms = termBlocks.map(this.parseTerm.bind(this));
-        let roughTerms = [];
+        let roughTerms: HighSchoolTermDto[] = [];
         for (let termBlock of termBlocks) {
             let parsedTerm = this.parseTerm(termBlock);
             roughTerms.push(parsedTerm);
@@ -153,13 +141,18 @@ export class PenderLoaderService extends SisLoaderService {
             // If there are two schools in the same year, copy over the year and grade level if missing
             if (!term.termYear) {
                 term.termYear = lastTerm.termYear;
-                term.gradeLevel = lastTerm.gradeLevel;
+                term.termGradeLevel = lastTerm.termGradeLevel;
             }
 
             // Check for duplicate terms (same termYear and termSchoolName) and merge them
-            if (lastTerm && lastTerm.termYear === term.termYear && lastTerm.termSchoolName === term.termSchoolName) {
+            if (
+                lastTerm 
+                && lastTerm.termYear === term.termYear
+                && lastTerm.termSchoolName === term.termSchoolName
+                && lastTerm.termSchoolCode === term.termSchoolCode
+            ) {
                 // Merge courses
-                (lastTerm.courses as CourseDto[]).push(...term.courses);
+                (lastTerm.courses as CourseDto[]).push(...term.courses as CourseDto[]);
                 lastTerm.termCredit = term.termCredit;
                 lastTerm.termGpa = term.termGpa;
                 lastTerm.termUnweightedGpa = term.termUnweightedGpa;
@@ -172,7 +165,7 @@ export class PenderLoaderService extends SisLoaderService {
 
         // Parse the in-progress courses
         const inProgressTerm = this.parseInProgressTerm(pdfText, transcript);
-        if (inProgressTerm) {
+        if (inProgressTerm && inProgressTerm.courses && inProgressTerm.courses.length > 0) {
             transcript.terms.push(inProgressTerm);
         }
 
@@ -257,7 +250,7 @@ export class PenderLoaderService extends SisLoaderService {
         let currentBlock = -1;
         let isAfterCredit = false;
         for (const str of termBlock) {
-            if (str.match(/^[A-Z\d]{5}[XY]{1}[A-Z\d]{1}/)) { // The course code begins the string "1234X0 "
+            if (str.match(/^[A-Z\d]{5}[XYP]{1}[A-Z\d]{1}/)) { // The course code begins the string "1234X0 "
                 currentBlock++;
                 courseBlocks.push([]);
                 isAfterCredit = false;
@@ -295,9 +288,10 @@ export class PenderLoaderService extends SisLoaderService {
             // Look for credit info at the end of the course block
             let lastLine = courseBlock[courseBlock.length - 1];
             let creditBlob;
-            const fullCreditRegex = /(\d{1,3}|P|F|\*|PC19|CDM|WF|FF|WP|INC|ADU|WC)(\d\.\d{4})(\d|\d\.?\d*)$/
+            const fullCreditRegex = /(\d{1,3}|P|F|\*|PC19|CDM|WF|FF|WP|INC|ADU|WC)(\d\.\d{4})(\d\.?\d*)$/
             const fullCreditMatch = lastLine.match(fullCreditRegex);
             const letterCreditMatch = lastLine.match(/(A|B|C|D|F|P)(\d)$/);
+            const noWeightMatch = lastLine.match(/(\d{1,3}|P|F|\*|PC19|CDM|WF|FF|WP|INC|ADU|WC)(\d\.?\d*)$/);
 
             if (fullCreditMatch) {
                 creditBlob = fullCreditMatch[0];
@@ -308,6 +302,10 @@ export class PenderLoaderService extends SisLoaderService {
                 creditBlob = letterCreditMatch[0];
                 course.grade = letterCreditMatch[1];
                 course.creditEarned = letterCreditMatch[2];
+            } else if (noWeightMatch) {
+                creditBlob = noWeightMatch[0];
+                course.grade = noWeightMatch[1];
+                course.creditEarned = noWeightMatch[2];
             }
             
             if (creditBlob) {

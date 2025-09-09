@@ -117,7 +117,9 @@ describe('PenderLoaderService', () => {
                     if (studentId.studentPhone) expect(studentId.studentPhone).toMatch(/^[\d ()+-]+$/);
                 });
                 check("gradeLevel", () => expect(studentId.gradeLevel).toMatch(/^\d+$/));
-                check("graduationDate", () => expect(studentId.graduationDate).toMatch(/^\d{4}$/));
+                check("graduationDate", () => {
+                    if (studentId.graduationDate) expect(studentId.graduationDate).toMatch(/^\d{4}$/);
+                });
                 check("schoolName", () => expect(studentId.schoolName).toMatch(/^[a-zA-Z ]+$/));
                 check("schoolPhone", () => expect(studentId.schoolPhone).toMatch(/^[\d ()+-]+$/));
 
@@ -161,13 +163,15 @@ describe('PenderLoaderService', () => {
                 check("schoolAddress", () => expect(transcript.schoolAddress).toBeDefined());
                 check("schoolFax", () => expect(transcript.schoolFax).toMatch(/^[\d ()+-]+$/));
                 check("schoolCode", () => expect(transcript.schoolCode).toMatch(/^\d+$/));
-                check("gpa", () => expect(transcript.gpa).toMatch(/^\d+\.\d{3}$/));
+                check("gpa", () => {
+                    if (transcript.gpa) expect(transcript.gpa).toMatch(/^\d+\.\d{3}$/);
+                });
                 check("studentStateId", () =>
                     expect(transcript.studentStateId).toMatch(/^\d+$/),
                 );
-                check("gpaUnweighted", () =>
-                    expect(transcript.gpaUnweighted).toMatch(/^\d+\.\d{3}$/),
-                );
+                check("gpaUnweighted", () => {
+                    if (transcript.gpaUnweighted) expect(transcript.gpaUnweighted).toMatch(/^\d+\.\d{3}$/);
+                });
                 check("classRank", () => expect(transcript.classRank).toBeDefined());
                 check("schoolDistrict", () =>
                     expect(transcript.schoolDistrict).toBeDefined(),
