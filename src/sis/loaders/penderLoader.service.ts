@@ -138,19 +138,27 @@ export class PenderLoaderService extends SisLoaderService {
         for (let term of roughTerms) {
             let lastTerm = condensedTerms[condensedTerms.length - 1];
 
-            // If there are two schools in the same year, copy over the year and grade level if missing
-            if (!term.termYear) {
-                term.termYear = lastTerm.termYear;
-                term.termGradeLevel = lastTerm.termGradeLevel;
+            // Check for duplicate terms (same termYear and termSchoolName) and merge them
+
+            // Check if this term has header info (school name/code, year)
+            // If it doesn't, copy it from the last term
+            if (term && (!term.termSchoolCode && !term.termSchoolName && !term.termYear)) {
+                term.termYear = lastTerm?.termYear ?? null;
+                term.termSchoolCode = lastTerm?.termSchoolCode ?? null;
+                term.termSchoolName = lastTerm?.termSchoolName ?? null;
             }
 
-            // Check for duplicate terms (same termYear and termSchoolName) and merge them
-            if (
-                lastTerm 
-                && lastTerm.termYear === term.termYear
-                && lastTerm.termSchoolName === term.termSchoolName
-                && lastTerm.termSchoolCode === term.termSchoolCode
-            ) {
+            // If the term is just missing the year, copy it from the last term
+            if (term && !term.termYear) {
+                term.termYear = lastTerm?.termYear ?? null;
+            }
+
+            // Check if preceding term doesn't have grade info and this term does
+            // If so, merge this term into the last term
+            const lastTermHasGrade = lastTerm && lastTerm.termCredit && lastTerm.termGpa && lastTerm.termUnweightedGpa;
+            const thisTermHasGrade = term && term.termCredit && term.termGpa && term.termUnweightedGpa;
+
+            if (lastTerm && !lastTermHasGrade && thisTermHasGrade) {
                 // Merge courses
                 (lastTerm.courses as CourseDto[]).push(...term.courses as CourseDto[]);
                 lastTerm.termCredit = term.termCredit;
@@ -196,7 +204,7 @@ export class PenderLoaderService extends SisLoaderService {
         // Iterate through text looking for year (ie 2021-2022)
         // Add text to current term
         for (const str of pdfText) {
-            if (/\d{4}-\d{4}/.test(str) || (isAfterCredit && /^#/.test(str))) {
+            if (/^\d{4}-\d{4}$/.test(str) || (isAfterCredit && (/^#/.test(str) || /^Grade\s*\d+/.test(str)))) {
                 termIndex += 1;
                 termBlocks.push([]);
                 isAfterCredit = false;
@@ -232,11 +240,12 @@ export class PenderLoaderService extends SisLoaderService {
                 term.termSchoolName = PdfLoaderService.stringAfterField(termBlock, "#");
             }
             
-            const creditLine: string[] = termBlock[termBlock.length - 1].match(/[\d\.]+/g) || [];
-            if (creditLine.length === 3) {
-                term.termCredit = creditLine[0];
-                term.termGpa = creditLine[1];
-                term.termUnweightedGpa = creditLine[2];
+            const creditLine = termBlock[termBlock.length - 1]
+            const creditMatch = creditLine.match(/Credit:\s*(\S+)\s*GPA:\s*(\S+)\s*U\/W GPA:\s*(\S+)/);
+            if (creditMatch && creditMatch.length >= 4) {
+                term.termCredit = creditMatch[1];
+                term.termGpa = creditMatch[2];
+                term.termUnweightedGpa = creditMatch[3];
             }
         }
         catch (err) {
@@ -364,17 +373,41 @@ export class PenderLoaderService extends SisLoaderService {
     parseTests(pdfText: string[]): TestDto[] {
         let tests: TestDto[] = [];
         let currentIndex = pdfText.indexOf("Standard Tests") + 1;
-        if (currentIndex === -1) return null;
+        if (currentIndex === 0) return null;
         while (currentIndex < pdfText.length - 1 && pdfText[currentIndex] !== "Note: Best scores displayed.") {
+            const currentText = pdfText[currentIndex];
+            if (currentText === "Standard Tests") {
+                currentIndex++;
+                continue;
+            }
             let test = new TestDto();
-            test.testTitle = pdfText[currentIndex];
-            const match = pdfText[currentIndex + 1].match(/[Score|Result]:(.*?)\s*Date:(.*)/);
-            if (match) {
-                test.testScore = match[1];
-                test.testDate = match[2];
+            test.testTitle = currentText;
+            // The score and date likely the next few lines, we need to look ahead for them
+            let lookAheadIndex = currentIndex + 1;
+            while (lookAheadIndex < pdfText.length) {
+                if (pdfText[lookAheadIndex] === "Note: Best scores displayed.") {
+                    currentIndex = lookAheadIndex;
+                    break;
+                }
+
+                // Look for a line with "Score: <score> Date: <date>
+                // Either can be missing, but at least one should be present
+                const scoreMatch = pdfText[lookAheadIndex].match(/(Score|Result):\s*([\d\.]+|P|F)/);
+                if (scoreMatch && scoreMatch.length >= 3) {
+                    test.testScore = scoreMatch[2];
+                }
+                const dateMatch = pdfText[lookAheadIndex].match(/Date:\s*([\d\/]+)/);
+                if (dateMatch && dateMatch.length >= 2) {
+                    test.testDate = dateMatch[1];
+                }
+
+                if (test.testScore || test.testDate) {
+                    currentIndex = lookAheadIndex + 1;
+                    break;
+                }
+                lookAheadIndex++;
             }
             tests.push(test);
-            currentIndex += 2;
         }
 
         return tests;
