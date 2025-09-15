@@ -6,6 +6,7 @@ import { genericPhoto } from "./images/testPhoto";
 import { exampleCollegeStudent, exampleHighSchoolStudent } from "./testLoaderData/exampleStudents";
 import { StudentIdDto } from "../../dtos/studentId.dto";
 import { validationStudents } from "./testLoaderData/validationStudents";
+import { demoStudents } from "./testLoaderData/demoStudents";
 import * as sharp from "sharp";
 import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
@@ -98,11 +99,15 @@ export class TestLoaderService extends SisLoaderService {
         }
 
         const validationStudentNumbers = validationStudents.map(student => student.studentNumber);
+        const demoStudentNumbers = demoStudents.map(student => student.studentNumber);
 
         if (validationStudentNumbers.includes(studentNumber)) {
             return validationStudents.find(student => student.studentNumber === studentNumber);
         }
-        if (studentNumber.length >= 4) {
+        else if (demoStudentNumbers.includes(studentNumber)) {
+            return demoStudents.find(student => student.studentNumber === studentNumber);
+        }
+        else if (studentNumber.length >= 4) {
             return exampleCollegeStudent;
         }
         else {
