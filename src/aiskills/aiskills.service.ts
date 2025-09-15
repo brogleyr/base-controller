@@ -55,7 +55,7 @@ export class AiSkillsService {
         throw new Error("Failed to retrieve data from the jobs analysis endpoint.");
       }
 
-      return response.data.body;
+      return response.data.body.highlight;
     }
     catch (e) {
       console.error(e);
