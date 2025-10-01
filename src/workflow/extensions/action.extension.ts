@@ -132,15 +132,21 @@ export class ExtendedAction implements IActionExtension {
               console.log("Performing transcript credential analysis");
 
               if (eval(action.condition)) {
-                let aiJobsResponse;
+                if (instance.state_data?.aiSkills) {
+                  console.log("AI Skills data already exists in state_data, skipping analysis.");
+                  break;
+                }
+                
                 try {
-                  aiJobsResponse = await this.aiSkillsService.jobsAnalysis(connection_id);
+                  const skillsAnalysisResponse = await this.aiSkillsService.skillsAnalysis(connection_id);
+                  instance.state_data.aiSkills = skillsAnalysisResponse ?? null;
+                  console.log("AI Skills Response=", skillsAnalysisResponse);
+
                 } catch(err) {
                   console.error("AISkills response threw an error: ", err);
                 }
 
-                instance.state_data.aiSkills = aiJobsResponse ? aiJobsResponse : null;
-                console.log("AI Skills Response=", aiJobsResponse);
+                
               }
               break;
             default:

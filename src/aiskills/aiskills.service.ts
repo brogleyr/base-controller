@@ -15,7 +15,7 @@ export class AiSkillsService {
 		private readonly enrollmentService: EnrollmentService
 	) { }
 
-	async jobsAnalysis(connection_id: any): Promise<string | null> {
+	async skillsAnalysis(connection_id: any): Promise<string | null> {
 		if (!connection_id) {
 			throw new Error("Connection ID is required for jobs analysis.");
 		}
@@ -55,7 +55,7 @@ export class AiSkillsService {
 				throw new Error("Failed to retrieve data from the jobs analysis endpoint.");
 			}
 
-			return response.data.body.highlight;
+			return response.data.body;
 		}
 		catch (e) {
 			console.error(e);
@@ -63,7 +63,7 @@ export class AiSkillsService {
 		}
 	}
 
-	skillAnalysis(connection_id: any) {
+	jobsAnalysis(connection_id: any) {
 
 	}
 
