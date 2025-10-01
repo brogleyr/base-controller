@@ -132,7 +132,7 @@ export class ExtendedAction implements IActionExtension {
               console.log("Performing transcript credential analysis");
 
               if (eval(action.condition)) {
-                if (instance.state_data?.aiSkills) {
+                if (instance.state_data?.aiSkills && instance.state_data.aiSkills.highlight) {
                   console.log("AI Skills data already exists in state_data, skipping analysis.");
                   break;
                 }
