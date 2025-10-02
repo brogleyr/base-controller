@@ -15,7 +15,7 @@ export class AiSkillsService {
 		private readonly enrollmentService: EnrollmentService
 	) { }
 
-	async skillsAnalysis(connection_id: any): Promise<string | null> {
+	async skillsAnalysis(connection_id: any): Promise<any> {
 		if (!connection_id) {
 			throw new Error("Connection ID is required for jobs analysis.");
 		}

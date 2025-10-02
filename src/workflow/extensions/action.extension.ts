@@ -140,13 +140,12 @@ export class ExtendedAction implements IActionExtension {
                 try {
                   const skillsAnalysisResponse = await this.aiSkillsService.skillsAnalysis(connection_id);
                   instance.state_data.aiSkills = skillsAnalysisResponse ?? null;
+                  instance.state_data.aiSkillsDisplay = skillsAnalysisResponse.highlight ?? null;
                   console.log("AI Skills Response=", skillsAnalysisResponse);
 
                 } catch(err) {
                   console.error("AISkills response threw an error: ", err);
                 }
-
-                
               }
               break;
             default:
