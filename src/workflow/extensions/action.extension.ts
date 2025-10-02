@@ -128,15 +128,10 @@ export class ExtendedAction implements IActionExtension {
                   }
               }
               break;
-            case "analyzeCredential-Transcript":
-              console.log("Performing transcript credential analysis");
+            case "analyzeCredential-Skills":
+              console.log("Performing transcript credential skills analysis");
 
               if (eval(action.condition)) {
-                if (instance.state_data?.aiSkills && instance.state_data.aiSkills.highlight) {
-                  console.log("AI Skills data already exists in state_data, skipping analysis.");
-                  break;
-                }
-                
                 try {
                   const skillsAnalysisResponse = await this.aiSkillsService.skillsAnalysis(connection_id);
                   instance.state_data.aiSkills = skillsAnalysisResponse ?? null;
@@ -145,6 +140,19 @@ export class ExtendedAction implements IActionExtension {
 
                 } catch(err) {
                   console.error("AISkills response threw an error: ", err);
+                }
+              }
+              break;
+            case "analyzeCredential-Jobs":
+              console.log("Performing transcript credential job analysis");
+              if (eval(action.condition)) {
+                try {
+                  const skillsAnalysis = instance.state_data.aiSkills;
+                  const jobsAnalysisResponse = await this.aiSkillsService.jobsAnalysis(connection_id, skillsAnalysis);
+                  instance.state_data.aiJobs = jobsAnalysisResponse ?? null;
+                  console.log("AI Jobs Response=", jobsAnalysisResponse);
+                } catch(err) {
+                  console.error("AIJobs response threw an error: ", err);
                 }
               }
               break;

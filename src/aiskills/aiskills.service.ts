@@ -15,21 +15,44 @@ export class AiSkillsService {
 		private readonly enrollmentService: EnrollmentService
 	) { }
 
-	async skillsAnalysis(connection_id: any): Promise<any> {
-		if (!connection_id) {
-			throw new Error("Connection ID is required for jobs analysis.");
+	async skillsAnalysis(connectionId: any): Promise<any> {
+		if (!connectionId) {
+			throw new Error("Connection ID is required for skills analysis.");
 		}
-		const connectionEnrollment: Enrollment = await this.enrollmentService.findOne(connection_id);
+		const connectionEnrollment: Enrollment = await this.enrollmentService.findOne(connectionId);
 		if (!connectionEnrollment) {
 			throw new Error("Enrollment or transcript not found for the given connection ID.");
 		}
 
 		const analysisBody = this.formatTranscript(connectionEnrollment);
-		console.log("Body to be sent to AI Skills:", analysisBody);
+		const endpointUrl = this.configService.get("SKILLS_ANALYSIS_URL");
+		const proxyUrl = this.configService.get("AUTHENTICATION_PROXY");
 
+		return this.callEndpointViaProxy(endpointUrl, proxyUrl, analysisBody);
+	}
 
+	async jobsAnalysis(connectionId: any, skillsResponse: any) {
+		if (!connectionId) {
+			throw new Error("Connection ID is required for jobs analysis.");
+		}
+		const connectionEnrollment: Enrollment = await this.enrollmentService.findOne(connectionId);
+		if (!connectionEnrollment) {
+			throw new Error("Enrollment or transcript not found for the given connection ID.");
+		}
+
+		const formattedTranscript = this.formatTranscript(connectionEnrollment);
+		const analysisBody = {
+			...skillsResponse,
+			...formattedTranscript
+		}
 		const endpointUrl = this.configService.get("JOBS_ANALYSIS_URL");
 		const proxyUrl = this.configService.get("AUTHENTICATION_PROXY");
+
+		return this.callEndpointViaProxy(endpointUrl, proxyUrl, analysisBody);
+	}
+
+	private async callEndpointViaProxy(endpointUrl, proxyUrl, body) {
+		console.log("Body to be sent to AI Skills:", body);
 
 		// TODO: Check for existence of env variables and validate URLs
 
@@ -41,7 +64,7 @@ export class AiSkillsService {
 			const response = await lastValueFrom(
 				this.httpService.post(
 					requestUrl,
-					analysisBody,
+					body,
 					{
 						headers: {
 							"Host": hostName,
@@ -52,19 +75,15 @@ export class AiSkillsService {
 			);
 
 			if (!response || !response.data || response.data.status !== 200 || !response.data.body) {
-				throw new Error("Failed to retrieve data from the jobs analysis endpoint.");
+				throw new Error("Failed to retrieve data from the endpoint");
 			}
 
 			return response.data.body;
 		}
 		catch (e) {
 			console.error(e);
-			return "Credential analysis could not be completed, please try again later.";
+			return null;
 		}
-	}
-
-	jobsAnalysis(connection_id: any) {
-
 	}
 
 
