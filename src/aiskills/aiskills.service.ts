@@ -52,7 +52,7 @@ export class AiSkillsService {
 	}
 
 	private async callEndpointViaProxy(endpointUrl, proxyUrl, body) {
-		console.log("Body to be sent to AI Skills:", body);
+		console.log("Body to be sent to analysis endpoint:", body);
 
 		// TODO: Check for existence of env variables and validate URLs
 

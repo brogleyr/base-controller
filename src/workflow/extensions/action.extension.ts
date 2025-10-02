@@ -150,6 +150,7 @@ export class ExtendedAction implements IActionExtension {
                   const skillsAnalysis = instance.state_data.aiSkills;
                   const jobsAnalysisResponse = await this.aiSkillsService.jobsAnalysis(connection_id, skillsAnalysis);
                   instance.state_data.aiJobs = jobsAnalysisResponse ?? null;
+                  instance.state_data.aiJobsDisplay = jobsAnalysisResponse.highlight ?? null;
                   console.log("AI Jobs Response=", jobsAnalysisResponse);
                 } catch(err) {
                   console.error("AIJobs response threw an error: ", err);
