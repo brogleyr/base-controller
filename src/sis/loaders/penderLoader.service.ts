@@ -86,18 +86,6 @@ export class PenderLoaderService extends SisLoaderService {
             .map(str => String(str).trim())
             .filter(str => str);
 
-        // transcript.tests =
-        // transcript.creditSummary = 
-        // transcript.ctePrograms = 
-
-        const creditTotals: string[] = pdfText.filter(str => str.startsWith("Total"))[0]?.match(/\d+\.\d{3}/g) || [];
-        if (creditTotals.length === 4) {
-            
-            // transcript.attemptedCredits = parseFloat(creditTotals[0]);
-            // transcript.requiredCredits = parseFloat(creditTotals[2]);
-            // transcript.remainingCredits = parseFloat(creditTotals[3]);
-        }
-
         studentId.studentNumber = PdfLoaderService.stringAfterField(pdfText, "Student Number");
         studentId.studentFullName = pdfText[8] ?? null;
         studentId.studentBirthDate = PdfLoaderService.stringAfterField(pdfText, "Birthdate")?.match(/[\d\/]+/)[0];
@@ -141,18 +129,38 @@ export class PenderLoaderService extends SisLoaderService {
 
         // Do this but with a for loop so we can check if the same term is repeated
         // transcript.terms = termBlocks.map(this.parseTerm.bind(this));
-        let roughTerms = [];
+        let roughTerms: HighSchoolTermDto[] = [];
         for (let termBlock of termBlocks) {
             let parsedTerm = this.parseTerm(termBlock);
             roughTerms.push(parsedTerm);
         }
-        // Check for duplicate terms (same termYear and termSchoolName) and merge them
         let condensedTerms = [];
         for (let term of roughTerms) {
             let lastTerm = condensedTerms[condensedTerms.length - 1];
-            if (lastTerm && lastTerm.termYear === term.termYear && lastTerm.termSchoolName === term.termSchoolName) {
+
+            // Check for duplicate terms (same termYear and termSchoolName) and merge them
+
+            // Check if this term has header info (school name/code, year)
+            // If it doesn't, copy it from the last term
+            if (term && (!term.termSchoolCode && !term.termSchoolName && !term.termYear)) {
+                term.termYear = lastTerm?.termYear ?? null;
+                term.termSchoolCode = lastTerm?.termSchoolCode ?? null;
+                term.termSchoolName = lastTerm?.termSchoolName ?? null;
+            }
+
+            // If the term is just missing the year, copy it from the last term
+            if (term && !term.termYear) {
+                term.termYear = lastTerm?.termYear ?? null;
+            }
+
+            // Check if preceding term doesn't have grade info and this term does
+            // If so, merge this term into the last term
+            const lastTermHasGrade = lastTerm && lastTerm.termCredit && lastTerm.termGpa && lastTerm.termUnweightedGpa;
+            const thisTermHasGrade = term && term.termCredit && term.termGpa && term.termUnweightedGpa;
+
+            if (lastTerm && !lastTermHasGrade && thisTermHasGrade) {
                 // Merge courses
-                (lastTerm.courses as CourseDto[]).push(...term.courses);
+                (lastTerm.courses as CourseDto[]).push(...term.courses as CourseDto[]);
                 lastTerm.termCredit = term.termCredit;
                 lastTerm.termGpa = term.termGpa;
                 lastTerm.termUnweightedGpa = term.termUnweightedGpa;
@@ -164,13 +172,14 @@ export class PenderLoaderService extends SisLoaderService {
         transcript.terms = condensedTerms;
 
         // Parse the in-progress courses
-        const inProgressCourses: HighSchoolCourseDto[] = this.parseInProgressCourses(pdfText);
+        const inProgressTerm = this.parseInProgressTerm(pdfText, transcript);
+        if (inProgressTerm && inProgressTerm.courses && inProgressTerm.courses.length > 0) {
+            transcript.terms.push(inProgressTerm);
+        }
 
-        (transcript.terms[transcript.terms.length - 1]?.courses as HighSchoolCourseDto[])?.push(...inProgressCourses);
-        
         // Mark courses in the term as transfer or not based on the school code
         for (let term of transcript.terms) {
-            if (term.termSchoolCode === transcript.schoolCode) {
+            if (term.termSchoolCode === transcript.schoolCode || term.termSchoolName === transcript.schoolName) {
                 for (let course of term.courses) {
                     (course as CourseDto).transfer = false;
                 }
@@ -180,7 +189,6 @@ export class PenderLoaderService extends SisLoaderService {
                 }
             }
         }
-
         transcript.tests = this.parseTests(pdfText);
         transcript.creditSummary = this.parseCreditSummary(pdfText);
         // transcript.ctePrograms = new CteProgramDto();
@@ -196,7 +204,7 @@ export class PenderLoaderService extends SisLoaderService {
         // Iterate through text looking for year (ie 2021-2022)
         // Add text to current term
         for (const str of pdfText) {
-            if (/\d{4}-\d{4}/.test(str)) {
+            if (/^\d{4}-\d{4}$/.test(str) || (isAfterCredit && (/^#/.test(str) || /^Grade\s*\d+/.test(str)))) {
                 termIndex += 1;
                 termBlocks.push([]);
                 isAfterCredit = false;
@@ -220,14 +228,24 @@ export class PenderLoaderService extends SisLoaderService {
             term.courses = courseBlocks.map(this.parseCourse.bind(this));
 
             term.termGradeLevel = PdfLoaderService.stringAfterField(termBlock, "Grade");
-            term.termYear = termBlock[0];
-            term.termSchoolName = PdfLoaderService.stringAfterField(termBlock, "#")?.split(" ").slice(1).join(" ");
-            term.termSchoolCode = PdfLoaderService.stringAfterField(termBlock, "#")?.split(" ")[0];
-            const creditLine: string[] = termBlock[termBlock.length - 1].match(/[\d\.]+/g) || [];
-            if (creditLine.length === 3) {
-                term.termCredit = creditLine[0];
-                term.termGpa = creditLine[1];
-                term.termUnweightedGpa = creditLine[2];
+            term.termYear = termBlock.find(str => /\d{4}-\d{4}/.test(str))?.match(/\d{4}-\d{4}/)[0];
+
+            // School name and school code are both included after a '#' character. The code is first, then the name
+            // The code is typically all capital letters and numbers, and will sometimes be absent
+            const firstAfterHash = PdfLoaderService.stringAfterField(termBlock, "#")?.split(" ")[0];
+            if (firstAfterHash && /^[A-Z\d]+$/.test(firstAfterHash) && /\d+/.test(firstAfterHash)) {
+                term.termSchoolCode = firstAfterHash;
+                term.termSchoolName = PdfLoaderService.stringAfterField(termBlock, "#")?.split(" ").slice(1).join(" ");
+            } else {
+                term.termSchoolName = PdfLoaderService.stringAfterField(termBlock, "#");
+            }
+            
+            const creditLine = termBlock[termBlock.length - 1]
+            const creditMatch = creditLine.match(/Credit:\s*(\S+)\s*GPA:\s*(\S+)\s*U\/W GPA:\s*(\S+)/);
+            if (creditMatch && creditMatch.length >= 4) {
+                term.termCredit = creditMatch[1];
+                term.termGpa = creditMatch[2];
+                term.termUnweightedGpa = creditMatch[3];
             }
         }
         catch (err) {
@@ -241,7 +259,7 @@ export class PenderLoaderService extends SisLoaderService {
         let currentBlock = -1;
         let isAfterCredit = false;
         for (const str of termBlock) {
-            if (str.match(/\d+[A-Z]+\w+/)) { // The course code begins the string "1234X0 "
+            if (str.match(/^[A-Z\d]{5}[XYP]{1}[A-Z\d]{1}/)) { // The course code begins the string "1234X0 "
                 currentBlock++;
                 courseBlocks.push([]);
                 isAfterCredit = false;
@@ -263,9 +281,9 @@ export class PenderLoaderService extends SisLoaderService {
         try {
             course.courseCode = courseBlock[0].split(/\s+/)[0];
 
-            const indexUncRec: number = courseBlock.indexOf("UNC Minimum Requirement")
+            const indexUncRec: number = courseBlock.indexOf("UNC Minimum Requirement");
 
-            const firstTitleLine = courseBlock[0].match(/\s+(.*)/)?.[1]
+            const firstTitleLine = courseBlock[0].match(/\s+(.*)/)?.[1] || "";
             let followingTitleLines = "";
             for (let i = 1; i < courseBlock.length; i++) {
                 // If the line is a UNC requirement or only numbers (grades), we're done
@@ -273,34 +291,40 @@ export class PenderLoaderService extends SisLoaderService {
                     break;
                 }
                 followingTitleLines += " " + courseBlock[i];
-                
-            } 
-            const assembledTitle = (firstTitleLine + followingTitleLines).replace(/\s+/g, ' ').trim();
-            const creditBlob = assembledTitle.match(/\s*(\d{2}|P)\d{1}\.\d{5}$/)?.[0]
-            let creditLine = [];
-            if (creditBlob) {
-                // Remove trailing grade info
-                creditLine = this.parseCreditLine(creditBlob);
-                // Remove the credit line from the title
-                assembledTitle.replace(/\s*\d{3}\.\d{5}$/, "").trim();
             }
-            else {
-                creditLine = this.parseCreditLine(courseBlock[courseBlock.length - 1])
+            let assembledTitle = (firstTitleLine + followingTitleLines).replace(/\s+/g, ' ').trim();
+
+            // Look for credit info at the end of the course block
+            let lastLine = courseBlock[courseBlock.length - 1];
+            let creditBlob;
+            const fullCreditRegex = /(\d{1,3}|P|F|\*|PC19|CDM|WF|FF|WP|INC|ADU|WC)(\d\.\d{4})(\d\.?\d*)$/
+            const fullCreditMatch = lastLine.match(fullCreditRegex);
+            const letterCreditMatch = lastLine.match(/(A|B|C|D|F|P)(\d)$/);
+            const noWeightMatch = lastLine.match(/(\d{1,3}|P|F|\*|PC19|CDM|WF|FF|WP|INC|ADU|WC)(\d\.?\d*)$/);
+
+            if (fullCreditMatch) {
+                creditBlob = fullCreditMatch[0];
+                course.grade = fullCreditMatch[1];
+                course.courseWeight = fullCreditMatch[2];
+                course.creditEarned = fullCreditMatch[3];
+            } else if (letterCreditMatch) {
+                creditBlob = letterCreditMatch[0];
+                course.grade = letterCreditMatch[1];
+                course.creditEarned = letterCreditMatch[2];
+            } else if (noWeightMatch) {
+                creditBlob = noWeightMatch[0];
+                course.grade = noWeightMatch[1];
+                course.creditEarned = noWeightMatch[2];
+            }
+            
+            if (creditBlob) {
+                // Remove the credit line from the title
+                assembledTitle = assembledTitle.replace(creditBlob, "").trim();
             }
 
-            course.courseTitle = firstTitleLine + followingTitleLines;
+            course.courseTitle = assembledTitle;
             course.flags = indexUncRec !== -1 ? ["UNC Minimum Requirement"] : [];
-            
-            if (creditLine.length === 3) {
-                course.grade = creditLine[0];
-                course.creditEarned = creditLine[2];
-                course.courseWeight = creditLine[1];
-            }
-            else if (creditLine.length === 2) {
-                course.grade = courseBlock[courseBlock.length - 2] ?? null;
-                course.creditEarned = creditLine[1];
-                course.courseWeight = creditLine[0];
-            }
+
             course.inProgress = false;
         }
         catch (err) {
@@ -310,18 +334,14 @@ export class PenderLoaderService extends SisLoaderService {
         return course;
     }
 
-    parseCreditLine(creditLine: string): string[] {
-        // Credit line can be broken down into grade, weight, credit earned
-        // '791.00001' = 79, 1.0000, 1
-        const weight = creditLine.match(/\d.\d{4}/);
-        // Extract weight, grade is the prior conent, credit is the trailing number
-        if (weight) {
-            const weightIndex = creditLine.indexOf(weight[0]);
-            const gradePart = creditLine.substring(0, weightIndex).trim();
-            const creditPart = creditLine.substring(weightIndex + weight[0].length).trim();
-            return [gradePart, weight[0], creditPart];
-        }
-        return [];
+    parseInProgressTerm(pdfText: string[], transcript: TranscriptDto): HighSchoolTermDto {
+        let term = new HighSchoolTermDto();
+        term.termYear = "In-Progress";
+        term.termGradeLevel = transcript.gradeLevel;
+        term.termSchoolCode = transcript.schoolCode;
+        term.termSchoolName = transcript.schoolName;
+        term.courses = this.parseInProgressCourses(pdfText);
+        return term;
     }
 
     parseInProgressCourses(pdfText: string[]): HighSchoolCourseDto[] {
@@ -341,7 +361,7 @@ export class PenderLoaderService extends SisLoaderService {
 
             let course = new HighSchoolCourseDto();
             course.courseCode = str.split(/\s+/)[0] ?? null;
-            course.courseWeight = str.match(/[\d\.]+$/)[0] ?? null;
+            course.courseWeight = str.match(/\d{1}\.\d{3,4}$/)[0] ?? null;
             course.courseTitle = str.replace(/\s*[\d\.]+$/, "").split(/\s+/).slice(1).join(" ") ?? null;
             course.inProgress = true;
             course.transfer = false;
@@ -353,17 +373,41 @@ export class PenderLoaderService extends SisLoaderService {
     parseTests(pdfText: string[]): TestDto[] {
         let tests: TestDto[] = [];
         let currentIndex = pdfText.indexOf("Standard Tests") + 1;
-        if (currentIndex === -1) return null;
+        if (currentIndex === 0) return null;
         while (currentIndex < pdfText.length - 1 && pdfText[currentIndex] !== "Note: Best scores displayed.") {
+            const currentText = pdfText[currentIndex];
+            if (currentText === "Standard Tests") {
+                currentIndex++;
+                continue;
+            }
             let test = new TestDto();
-            test.testTitle = pdfText[currentIndex];
-            const match = pdfText[currentIndex + 1].match(/[Score|Result]:(.*?)\s*Date:(.*)/);
-            if (match) {
-                test.testScore = match[1];
-                test.testDate = match[2];
+            test.testTitle = currentText;
+            // The score and date likely the next few lines, we need to look ahead for them
+            let lookAheadIndex = currentIndex + 1;
+            while (lookAheadIndex < pdfText.length) {
+                if (pdfText[lookAheadIndex] === "Note: Best scores displayed.") {
+                    currentIndex = lookAheadIndex;
+                    break;
+                }
+
+                // Look for a line with "Score: <score> Date: <date>
+                // Either can be missing, but at least one should be present
+                const scoreMatch = pdfText[lookAheadIndex].match(/(Score|Result):\s*([\d\.]+|P|F)/);
+                if (scoreMatch && scoreMatch.length >= 3) {
+                    test.testScore = scoreMatch[2];
+                }
+                const dateMatch = pdfText[lookAheadIndex].match(/Date:\s*([\d\/]+)/);
+                if (dateMatch && dateMatch.length >= 2) {
+                    test.testDate = dateMatch[1];
+                }
+
+                if (test.testScore || test.testDate) {
+                    currentIndex = lookAheadIndex + 1;
+                    break;
+                }
+                lookAheadIndex++;
             }
             tests.push(test);
-            currentIndex += 2;
         }
 
         return tests;
