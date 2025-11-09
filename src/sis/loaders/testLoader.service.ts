@@ -94,7 +94,7 @@ export class TestLoaderService extends SisLoaderService {
     }
 
     async getStudentTranscript(studentNumber: string): Promise<TranscriptDto> {
-        const redisStudentId = JSON.parse(await this.redisService.get(`${studentNumber}:studentId`));
+        const redisStudentId = JSON.parse(await this.redisService.get(`${studentNumber}:transcript`));
         if (redisStudentId) {
             return redisStudentId
         }
