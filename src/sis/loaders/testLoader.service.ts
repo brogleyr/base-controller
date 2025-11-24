@@ -1,8 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { SisLoaderService } from "./sisLoader.service";
 import { TranscriptDto } from "../../dtos/transcript.dto";
-import { testFemalePhotoBase64 } from "./images/testPhoto";
-import { genericPhoto } from "./images/testPhoto";
 import { exampleCollegeStudent, exampleHighSchoolStudent } from "./testLoaderData/exampleStudents";
 import { StudentIdDto } from "../../dtos/studentId.dto";
 import { validationStudents } from "./testLoaderData/validationStudents";
@@ -10,12 +8,14 @@ import { demoStudents } from "./testLoaderData/demoStudents";
 import * as sharp from "sharp";
 import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
+import { RedisService } from "src/services/redis.service";
 
 @Injectable()
 export class TestLoaderService extends SisLoaderService {
 
     constructor(
-        private readonly httpService: HttpService
+        private readonly httpService: HttpService,
+        private readonly redisService: RedisService
     ) {
         super();
     };
@@ -25,8 +25,12 @@ export class TestLoaderService extends SisLoaderService {
 
     async getStudentId(studentNumber: string): Promise<StudentIdDto> {
 
-        let exampleStudent = this.getStudent(studentNumber);
+        const redisStudentId = JSON.parse(await this.redisService.get(`${studentNumber}:studentId`));
+        if (redisStudentId) {
+            return redisStudentId
+        }
 
+        let exampleStudent = this.getStudent(studentNumber);
 
         let response;
         try {
@@ -90,6 +94,11 @@ export class TestLoaderService extends SisLoaderService {
     }
 
     async getStudentTranscript(studentNumber: string): Promise<TranscriptDto> {
+        const redisTranscript = JSON.parse(await this.redisService.get(`${studentNumber}:transcript`));
+        if (redisTranscript) {
+            return redisTranscript
+        }
+
         return this.getStudent(studentNumber);
     }
 
